@@ -1,0 +1,311 @@
+---
+title: "KidStroopAnalyses"
+author: "Bria Long"
+date: "2/7/2018"
+output: html_document
+---
+
+## Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(reshape2)
+library(dplyr)
+library(ez)
+library(lme4)
+library(lme4)
+library(knitr)
+library(lmerTest)
+```
+
+## Files
+```{r}
+
+## Compiled data files for all children tested
+e1_fileName="data/Experiment1_All.csv" #
+e2_fileName="data/Experiment2_All.csv" # 
+
+## Demographics sheet for E1
+demographics <- read.csv("demographics/Experiment1_SubjectsbyAge.csv") %>%
+  mutate(Subject = as.factor(Subject))
+
+# avg and std of age
+ageOut <- demographics %>%
+  distinct(FileName, Age, AgeGroup) %>% 
+  group_by(AgeGroup) %>%
+  summarize(meanAge=mean(Age), sdAge=sd(Age), numKids=length(Age))
+
+# for all subjects, count # of trials after practice
+errorSubs <- read.csv(e1_fileName) %>%
+  mutate(Subject = factor(id), Congruency = factor(condition))  %>%
+  filter(trial>10)  %>% 
+  group_by(Subject) %>%
+  summarize(countTrials = length(RT)) %>%
+  summarize(avgTrials = mean(countTrials), minTrials=min(countTrials), maxTrials=max(countTrials))
+
+# for RT anlayses -- how many trials did we get per age group?
+includedSubs <- read.csv(e1_fileName) %>%
+  mutate(Subject = factor(id), Congruency = factor(condition))  %>%
+  left_join(demographics) %>% # join ages
+  filter(RT<4000, correct == 1, trial>10)  %>% # speeded, correct trials after practice
+  group_by(Subject, Congruency, AgeGroup, Age)  %>%
+  summarize(countTrials = length(RT))  %>% # how many trails per condition
+  filter(countTrials>4) # exclude if less than five speeded correct per cond
+
+# now report out summary for the text
+trialSummary <- includedSubs %>%
+  group_by(Subject) %>%
+  mutate(countTrialsTotal = sum(countTrials)) %>% # count total trials for reporting
+  distinct(Subject, countTrialsTotal, AgeGroup, Age) %>%
+  group_by(AgeGroup) %>%
+  summarize(uniqueSubjects = length(unique(Subject)), countTrialsAvg = mean(countTrialsTotal), countTrialsSD=sd(countTrialsTotal), AgeMean=mean(Age), AgeSD=sd(Age))
+
+```
+##Demographics 
+
+One child began the task but did not complete more than two trials. This left us with `r ageOut$numKids[1]+ageOut$numKids[2]` children in the final sample, with `r ageOut$numKids[1]` 3-year-olds (M = `r round(ageOut$meanAge,2)[1]` months, SD = `r round(ageOut$sdAge,2)[1]`  months) and `r ageOut$numKids[2]` 4-year-olds (M = `r round(ageOut$meanAge,2)[2]`  months, SD = `r round(ageOut$sdAge,2)[2]`  months).   
+
+We analyzed the errors of all 78 children.  For each child, we excluded the first ten trials from the test phase as practice trials. Children completed an average of `r round(errorSubs$avgTrials,2)` trials out of a possible 70 (range `r round(errorSubs$minTrials,2)` to `r round(errorSubs$maxTrials,2)`).   
+
+Children were then included in reaction time analyses if they had at least 5 correct trials (after the 10 practice trials) per condition (congruent, incongruent) with RTs under 4 seconds. Seven children were excluded for not meeting these criteria; all children were 3-year-olds. This left us with 72 children: `r trialSummary$uniqueSubjects[1]`  three-year-olds (M = `r round(trialSummary$AgeMean,2)[1]` months, SD = r `r round(trialSummary$AgeSD,2)[1]` months) and all of the 31 four-year-olds. 3-year-olds contributed  `r round(trialSummary$countTrialsAvg,2)[1]` correct, speeded trials to analysis, and 4-year-olds contributed  = `r round(trialSummary$countTrialsAvg,2)[2]` correct, speeded trials to analysis.
+
+## Experiment 1: Error analyses
+```{r}
+
+### ERRORS ###  read in the data and do a first pass anova
+ErrorData_E1<- read.csv(e1_fileName) %>%
+  mutate(Subject=factor(id)) %>%
+  select(-(id)) %>%
+  left_join(demographics) %>%
+  mutate(error = 1-correct) %>%
+  filter(trial > 10) %>%
+  mutate(Item = factor(imagePair), Subject=factor(Subject), Congruency = factor(condition), AgeGroup = factor(AgeGroup), FamVersion = factor(FamVersion))
+
+##
+aov.out = ezANOVA(data = ErrorData_E1, dv=.(error), wid=.(Subject), within=.(Congruency), between=.(AgeGroup), type=3)
+print(aov.out)
+```
+### Confirm with mixed effect glmer
+```{r}
+Errors_lmer_E1 = glmer(error ~ Congruency + (1 | Subject) + (1|Item), data=ErrorData_E1, family="binomial")
+summary(Errors_lmer_E1)$coef
+```
+### Check -- does familiarity interact with Congruency effecs on errors? No.
+```{r}
+aov.out = ezANOVA(data = ErrorData_E1, dv=.(correct), wid=.(Subject), within=.(Congruency), between=.(AgeGroup), type=3)
+
+
+```
+```{r}
+ErrorData_E1_Summary<- ErrorData_E1 %>%
+  group_by(Subject) %>%
+  summarize(meanSubError = mean(error)) %>%
+  summarize(meanError = mean(meanSubError)*100)
+
+ErrorData_E1_SummarybyAge<- ErrorData_E1 %>%
+  group_by(Subject,AgeGroup) %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(AgeGroup)  %>%
+  summarize(meanError = mean(meanSubError)*100)
+```
+
+
+### Error results
+Children made relatively few errors (M = `r round(ErrorData_E1_Summary$meanError,3)`%) suggesting they understood the task instructions, though 3-year-olds made more errors than 4-year-olds (main effect of age: 3-year-olds: M = `r round(ErrorData_E1_SummarybyAge$meanError,2)[1]`%, 4-year-olds: M = `r round(ErrorData_E1_SummarybyAge$meanError,2)[2]`%, F(1,76) =  `r round(aov.out$ANOVA$F,2)[1]`,  p = `r round(aov.out$ANOVA$p,2)[1]`, ηG2 = `r round(aov.out$ANOVA$ges,2)[1]`). In addition, children showed evidence for the Size-Stroop effect in their errors; they made more errors on incongruent than congruent displays (main effect of trial type: incongruent M = 13.33% (SD = 17.99%) , congruent M = 8.78% (SD = 15.85%)  F(1,77) = `r round(aov.out$ANOVA$F,2)[2]`, p = `r round(aov.out$ANOVA$p,2)[2]`, ηG2 = `r round(aov.out$ANOVA$ges,2)[2]`). The Size-Stroop effect was apparent throughout this age range; there was no interaction between age group and trial type (F(1,77) = `r round(aov.out$ANOVA$F,2)[3]`, p = `r round(aov.out$ANOVA$F,2)[3]`, ηG2 < `r round(aov.out$ANOVA$ges,2)[3]`).  Finally, planned ad-hoc comparisons confirmed that the Size-Stroop effect was observed at each age: 3-year-olds: incongruent M = 16.98%, congruent M = 12.21%, t(47) = 2.13, p = .019; 4-year olds: incongruent M = 7.67%, congruent, M = 3.47%, t(30) = 2.20 p = .018, see Figure 3A.  Our GLMM model confirmed these analyses, finding that this effect generalized across individual subjects and items (B = 0.45, SE = 0.19, z  = 2.42  p = 0.016).
+
+
+### REACTION TIMES ### ### ### 
+```{r}
+demoUnique <- includedSubs %>%
+  group_by(Subject) %>%
+  select(-c(Congruency, countTrials))  %>%
+  distinct(Subject,AgeGroup)
+
+RTData_E1 <- read.csv(e1_fileName) %>%
+  mutate(Subject =factor(id)) %>%
+  select(-(id)) %>%
+  inner_join(demoUnique) %>%
+  left_join(demographics) %>%
+  filter(RT<4000, correct == 1, trial>10) %>%
+  mutate(logRT = log(RT)) %>%
+  mutate(Item = factor(imagePair), Congruency = factor(condition), AgeGroup = factor(AgeGroup))
+
+# run age x Congruency anova
+aov.rt = ezANOVA(data = RTData_E1, dv=.(RT), wid=.(Subject), within=.(Congruency), between=.(AgeGroup), type=3)
+print(aov.rt)
+```
+## RT analyses: break out by age group
+```{r}
+
+RTbyCond_3 <- RTData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by(Subject, Congruency) %>%
+  summarize (mean = mean(RT), sd = sd(RT))
+
+RTbyCond_4 <- RTData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by(Subject, Congruency) %>%
+  summarize (mean = mean(RT), sd = sd(RT))
+
+# 3-year-olds
+stroopRT_3Years=t.test(RTbyCond_3$mean[RTbyCond_3$Congruency==2], RTbyCond_3$mean[RTbyCond_3$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+# 4-year-olds
+stroopRT_4Years=t.test(RTbyCond_4$mean[RTbyCond_4$Congruency==2], RTbyCond_4$mean[RTbyCond_4$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+```
+
+
+### Mixed effect models on RT - all kids together
+```{r}
+## Exploratory analyses -- confirm with LME4 on logRT
+# Linear mixed effect models
+RT_lmer_E1_full = lmer(logRT ~ Congruency*AgeGroup + (1+ Congruency | Subject) + (1 + Congruency|Item), data=RTData_E1)
+
+kable(summary(RT_lmer_E1_full)$coef)
+
+```
+
+### Mixed effect models on RT for 4-year-olds
+```{r}
+RTbyCond_4_Raw <- RTData_E1 %>%
+  filter(AgeGroup==2) 
+
+RT_lmer_E1_4YearOlds = lmer(logRT ~ Congruency + (1 + Congruency| Subject) + (1 + Congruency|Item), data=RTbyCond_4_Raw)
+
+kable(summary(RT_lmer_E1_4YearOlds)$coef)
+
+```
+
+```{r}
+StroopbySub <- RTData_E1 %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanRT = mean(RT)) %>%
+  mutate(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1]) %>%
+  select(-c(Congruency,meanRT)) %>%
+  distinct(StroopRT)%>%
+  mutate( AbsStroopRT = abs(StroopRT))
+
+overallRT <- RTData_E1 %>%
+  group_by(Subject) %>%
+  summarize (meanRT = mean(RT), age=Age[1])
+
+# age vs. Stroop
+cor.test(overallRT$age, StroopbySub$StroopRT)
+
+# mean RT vs. Stroop
+cor.test(overallRT$meanRT, StroopbySub$StroopRT)
+
+# mean RT vs. abs(Stroopeffect)
+cor.test(overallRT$meanRT, StroopbySub$AbsStroopRT)
+
+```
+
+When we considered both 3- and 4-year-olds together, we found that, overall, children did not take longer to make visual size judgments on incongruent versus congruent displays (no main effect of trial type: incongruent M = 1780ms, congruent M = 1763ms, F(1,70) = .90, p = 0.35).  Three-year-olds took longer to make visual size judgments than four-year-olds (main effect of age group, F(1,70) = 11.51, p = .001), though the interaction between age group and condition was not significant (F(1,70) = 3.12, p = .08).  We found the same pattern of results in our linear mixed effect model (see Supplementary Materials: analysis code).
+
+However, we planned to examine results for 3- and 4-year-olds separately, as we anticipated that 3-year-olds might not be able to perform the task as well as 4-year-olds.  These planned ad-hoc tests revealed that 4-year-olds showed the Size-Stroop effect in their RTs (congruent M = 1555ms, SD = 359ms, incongruent M = 1622ms, SD = 319ms, t(30) = 2.37, p = .012, Cohen’s d = .43, Figure 3B; lmer estimates: b = 0.048, SE =  0.021, df = 21.32, t =  2.21, p = 0.038), while the 3-year-olds did not (congruent M = 1921ms, SD = 475ms, incongruent M = 1901ms, SD = 446ms, t(40) =-.54, p = .70, Figure 3B).  
+
+A final exploratory analysis examined whether age or overall slowness was more likely to account for the 3-year-olds’ lack of the Size-Stroop effect on RTs.  We analyzed whether children’s age (in months) predicted the degree to which children made more errors or had slower RTs on the incongruent than the congruent trials.  It did not; age was uncorrelated with the size of the Stroop effect (RTs: r = .20, p = .090; Error rates: r = -.03, p =.82, Supplemental Figure 2A).  We then asked whether overall RT predicted the magnitude of the Size-Stroop effect for all children. We found that the more slowly a child performed the task, the less likely it was that this child would show a Size-Stroop effect in their reaction times (r =-.22, p = .059, Supplemental Figure 1B), but not in their error rates (r = .18, p = .13). However, we found that this was likely driven by the fact that children who performed the task more slowly were more likely to show either a very positive or a very negative Size Stroop effect (age correlation with absolute valued RTs, r = .33, p = .004, Supplemental Figure 2C); in other words, children whose reaction times were longer tended to have more variance in their RTs, leading to noisier estimates of the Size-Stroop effect.
+
+# EXPERIMENT 2: Replication in fast four-year-olds
+
+## Errors
+```{r}
+
+allData_E2_errors <- read.csv(e2_fileName) %>%
+  mutate(Subject =factor(id)) %>%
+  select(-(id)) %>%
+  mutate(Item = factor(imagePair), Congruency = factor(condition)) %>%
+  group_by(Congruency,Subject) %>%
+  summarize(meanErrors = 1-mean(correct)) %>%
+  group_by(Congruency)
+
+t.test(RTbyCond_4$mean[RTbyCond_4$Congruency==2], RTbyCond_4$mean[RTbyCond_4$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+```
+### GLMM on errors
+```{r}
+allData_E2_errors_raw <- read.csv(e2_fileName) %>%
+  mutate(Subject =factor(id)) %>%
+  select(-(id)) %>%
+  mutate(Item = factor(imagePair), Congruency = factor(condition)) %>%
+  mutate(error = 1-(correct))
+
+## Exploratory analyses -- confirm with mixed effect glmer
+Errors_lmer_E2 = glmer(error ~ Congruency + (Congruency | Subject) + (Congruency|Item), data=allData_E2_errors_raw, family="binomial")
+
+kable(summary(Errors_lmer_E2)$coef)
+```
+
+```{r}
+
+allData_E2<-read.csv(e2_fileName) %>%
+  mutate(Subject =factor(id), Congruency = factor(condition), Item = factor(imagePair))  %>%
+  select(-(id)) 
+  
+## Load in data and see how many trials we have
+checkTrials <- allData_E2 %>%
+  filter(RT<4000, correct == 1, trial>10)  %>% # speeded, correct trials after practice
+  group_by(Subject, Congruency)  %>%
+  summarize(countTrials = length(RT))  # how many trails per condition
+
+# nothing to exclude  on the basis of trials
+sum(checkTrials$countTrials<5)
+
+## compute set of fast children
+fastKids <-allData_E2 %>%
+  group_by(Subject)  %>%
+  summarize(avgRT = mean (RT)) %>%
+  mutate(avgRT_zScore = scale(avgRT, center = TRUE, scale = TRUE)) %>%
+  filter(avgRT_zScore < 2)
+
+fastKidsList <- fastKids %>%
+  group_by(Subject) %>%
+  select(-c(avgRT, avgRT_zScore))  %>%
+  distinct(Subject)
+```
+
+```{r}
+
+## exclude from full data set
+fastKids_RT <- allData_E2 %>%
+  inner_join(fastKidsList) %>%
+  filter(RT<4000, correct == 1, trial>10) %>%  # speeded, correct trials after practice
+  mutate(logRT = log(RT))
+
+allKids_RT <- allData_E2 %>%
+  filter(RT<4000, correct == 1, trial>10) %>%  # speeded, correct trials after practice
+  mutate(logRT = log(RT))
+  
+RTbyCond <- fastKids_RT %>%  
+  group_by(Congruency,Subject) %>%
+  summarize(mean = mean(RT)) 
+
+###### simple t-test
+t.test(RTbyCond$mean[RTbyCond$Congruency==2], RTbyCond$mean[RTbyCond$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+# cohen's d
+effectBySub=RTbyCond$mean[RTbyCond$Congruency==2]-RTbyCond$mean[RTbyCond$Congruency==1];
+meanDiff=mean(effectBySub)
+stdDiff=sd(effectBySub)
+cohensd=meanDiff/stdDiff
+```
+### Mixed effect models
+```{r}
+# lmer model
+RT_lmer_E2_Fast = lmer(logRT ~ Congruency + (1|Subject) + (1|Item), data=fastKids_RT)
+round(summary(RT_lmer_E2_Fast)$coef,2)
+```
+## alll kids - exploratory - footnote 8
+```{r}
+
+###### simple t-test
+allKids_RTbyCond <- allKids_RT %>%
+  group_by(Congruency,Subject) %>%
+  summarize(mean = mean(RT)) 
+# t-test
+t.test(allKids_RTbyCond$mean[allKids_RTbyCond$Congruency==2], allKids_RTbyCond$mean[allKids_RTbyCond$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+
+RT_lmer_E2_All = lmer(logRT ~ Congruency + (1|Subject) + (1|Item), data=allKids_RT)
+kable(round(summary(RT_lmer_E2_All)$coef,2))
+```
