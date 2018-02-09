@@ -130,29 +130,13 @@ RTData_E1 <- read.csv(e1_fileName) %>%
   mutate(logRT = log(RT)) %>%
   mutate(Item = factor(imagePair), Congruency = factor(condition), AgeGroup = factor(AgeGroup))
 
+RTbyCond_All <- RTData_E1 %>%
+  group_by(Congruency) %>%
+  summarize(meanRT = mean(RT), stdRT=sd(RT))
+
 # run age x Congruency anova
 aov.rt = ezANOVA(data = RTData_E1, dv=.(RT), wid=.(Subject), within=.(Congruency), between=.(AgeGroup), type=3)
 print(aov.rt)
-```
-## RT analyses: break out by age group
-```{r}
-
-RTbyCond_3 <- RTData_E1 %>%
-  filter(AgeGroup==1) %>%
-  group_by(Subject, Congruency) %>%
-  summarize (mean = mean(RT), sd = sd(RT))
-
-RTbyCond_4 <- RTData_E1 %>%
-  filter(AgeGroup==2) %>%
-  group_by(Subject, Congruency) %>%
-  summarize (mean = mean(RT), sd = sd(RT))
-
-# 3-year-olds
-stroopRT_3Years=t.test(RTbyCond_3$mean[RTbyCond_3$Congruency==2], RTbyCond_3$mean[RTbyCond_3$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
-
-# 4-year-olds
-stroopRT_4Years=t.test(RTbyCond_4$mean[RTbyCond_4$Congruency==2], RTbyCond_4$mean[RTbyCond_4$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
-```
 
 
 ### Mixed effect models on RT - all kids together
@@ -162,6 +146,51 @@ stroopRT_4Years=t.test(RTbyCond_4$mean[RTbyCond_4$Congruency==2], RTbyCond_4$mea
 RT_lmer_E1_full = lmer(logRT ~ Congruency*AgeGroup + (1+ Congruency | Subject) + (1 + Congruency|Item), data=RTData_E1)
 
 kable(summary(RT_lmer_E1_full)$coef)
+
+
+```
+Reaction Time Results. When we considered both 3- and 4-year-olds together, we found that, overall, children did not take longer to make visual size judgments on incongruent versus congruent displays (no main effect of trial type: congruent M= `r round(RTbyCond_All$meanRT,0)[1]`, incongruent M = `r round(RTbyCond_All$meanRT,0)[2]`, F(1,72) =`r round(aov.rt$ANOVA$F,2)[2]`, p = `r round(aov.rt$ANOVA$p,2)[2]`).  Three-year-olds took longer to make visual size judgments than four-year-olds (main effect of age group, F(1,72) = `r round(aov.rt$ANOVA$F,2)[1]`, p = `r round(aov.rt$ANOVA$p,2)[1]`), though the interaction between age group and condition was not significant (F(1,72) = `r round(aov.rt$ANOVA$F,2)[1]`, p = `r round(aov.rt$ANOVA$p,2)[1]`).  We found the same pattern of results in our linear mixed effect model (see Supplementary Materials: analysis code).
+
+
+## RT analyses: break out by age group
+```{r}
+
+RTbyCond_3 <- RTData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanSubRT = mean(RT), sd = sd(RT))
+
+RTbyCond_4 <- RTData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanSubRT = mean(RT), sd = sd(RT))
+
+##
+RTbyCond_4_Avg <- RTbyCond_4 %>%
+  group_by(Congruency) %>%
+  summarize (meanRT = mean(meanSubRT), sdRT = sd(meanSubRT))
+
+RTbyCond_3_Avg <- RTbyCond_3 %>%
+  group_by(Congruency) %>%
+  summarize (meanRT = mean(meanSubRT), sdRT = sd(meanSubRT))
+
+# 3-year-olds
+stroopRT_3Years=t.test(RTbyCond_3$meanSubRT[RTbyCond_3$Congruency==2], RTbyCond_3$meanSubRT[RTbyCond_3$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+# 4-year-olds
+stroopRT_4Years=t.test(RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==2], RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+stroopRT_4Years_cohensD <- RTbyCond_4 %>%
+  group_by(Subject) %>%
+  summarize(effectBySub = meanSubRT[Congruency==2] - meanSubRT[Congruency==1] ) %>%
+  summarize(meanDiff = mean(effectBySub), stdDiff=sd(effectBySub)) %>%
+  mutate(cohensD = meanDiff/stdDiff)
+
+stroopRT_3Years_cohensD <- RTbyCond_3 %>%
+  group_by(Subject) %>%
+  summarize(effectBySub = meanSubRT[Congruency==2] - meanSubRT[Congruency==1] ) %>%
+  summarize(meanDiff = mean(effectBySub), stdDiff=sd(effectBySub)) %>%
+  mutate(cohensD = meanDiff/stdDiff)
 
 ```
 
@@ -173,8 +202,11 @@ RTbyCond_4_Raw <- RTData_E1 %>%
 RT_lmer_E1_4YearOlds = lmer(logRT ~ Congruency + (1 + Congruency| Subject) + (1 + Congruency|Item), data=RTbyCond_4_Raw)
 
 kable(summary(RT_lmer_E1_4YearOlds)$coef)
-
+lmerOut=summary(RT_lmer_E1_4YearOlds)$coef
 ```
+
+However, we planned to examine results for 3- and 4-year-olds separately, as we anticipated that 3-year-olds might not be able to perform the task as well as 4-year-olds.  These planned ad-hoc tests revealed that 4-year-olds showed the Size-Stroop effect in their RTs (congruent M = `r round(RTbyCond_4_Avg$meanRT,2)[1]`, SD = `r round(RTbyCond_4_Avg$sdRT,2)[1]`, incongruent M = `r round(RTbyCond_4_Avg$meanRT,2)[2]`, SD = `r round(RTbyCond_4_Avg$sdRT,2)[2]`, t(30) = `r round(stroopRT_4Years$statistic,2)`, p = `r round(stroopRT_4Years$p.value,2)`, Cohen’s d = `r round(stroopRT_4Years_cohensD$cohensD,2)`, Figure 3B; lmer estimates: b = -0.024, SE =  0.011, df = 21.32, t =  12.21, p = 0.038), while the 3-year-olds did not (congruent M = `r round(RTbyCond_3_Avg$meanRT,2)[1]`, SD = `r round(RTbyCond_3_Avg$sdRT,2)[1]`, incongruent M = `r round(RTbyCond_3_Avg$meanRT,2)[2]`, SD = `r round(RTbyCond_3_Avg$sdRT,2)[2]`, t(41) = `r round(stroopRT_3Years$p.value,2)`, p = `r round(stroopRT_3Years$p.value,2)`,  Cohen's d = `r round(stroopRT_3Years_cohensD$cohensD,2)`Figure 3B).  
+
 
 ```{r}
 StroopbySub <- RTData_E1 %>%
@@ -185,29 +217,32 @@ StroopbySub <- RTData_E1 %>%
   distinct(StroopRT)%>%
   mutate( AbsStroopRT = abs(StroopRT))
 
+StroopErrorbySub <- ErrorData_E1 %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanError = mean(error)) %>%
+  left_join(demographics) %>%
+  mutate(StroopError = meanError[Congruency==2] - meanError[Congruency==1]) %>%
+  select(-c(Congruency,meanError)) 
+
 overallRT <- RTData_E1 %>%
   group_by(Subject) %>%
   summarize (meanRT = mean(RT), age=Age[1])
 
 # age vs. Stroop
-cor.test(overallRT$age, StroopbySub$StroopRT)
+AgevStroop=cor.test(overallRT$age, StroopbySub$StroopRT)
+AgevStroopError=cor.test(StroopErrorbySub$Age, StroopErrorbySub$StroopError)
 
 # mean RT vs. Stroop
-cor.test(overallRT$meanRT, StroopbySub$StroopRT)
+RTvStroop=cor.test(overallRT$meanRT, StroopbySub$StroopRT)
 
 # mean RT vs. abs(Stroopeffect)
-cor.test(overallRT$meanRT, StroopbySub$AbsStroopRT)
+RTvAbsStroop=cor.test(overallRT$meanRT, StroopbySub$AbsStroopRT)
 
 ```
 
-When we considered both 3- and 4-year-olds together, we found that, overall, children did not take longer to make visual size judgments on incongruent versus congruent displays (no main effect of trial type: incongruent M = 1780ms, congruent M = 1763ms, F(1,70) = .90, p = 0.35).  Three-year-olds took longer to make visual size judgments than four-year-olds (main effect of age group, F(1,70) = 11.51, p = .001), though the interaction between age group and condition was not significant (F(1,70) = 3.12, p = .08).  We found the same pattern of results in our linear mixed effect model (see Supplementary Materials: analysis code).
-
-However, we planned to examine results for 3- and 4-year-olds separately, as we anticipated that 3-year-olds might not be able to perform the task as well as 4-year-olds.  These planned ad-hoc tests revealed that 4-year-olds showed the Size-Stroop effect in their RTs (congruent M = 1555ms, SD = 359ms, incongruent M = 1622ms, SD = 319ms, t(30) = 2.37, p = .012, Cohen’s d = .43, Figure 3B; lmer estimates: b = 0.048, SE =  0.021, df = 21.32, t =  2.21, p = 0.038), while the 3-year-olds did not (congruent M = 1921ms, SD = 475ms, incongruent M = 1901ms, SD = 446ms, t(40) =-.54, p = .70, Figure 3B).  
-
-A final exploratory analysis examined whether age or overall slowness was more likely to account for the 3-year-olds’ lack of the Size-Stroop effect on RTs.  We analyzed whether children’s age (in months) predicted the degree to which children made more errors or had slower RTs on the incongruent than the congruent trials.  It did not; age was uncorrelated with the size of the Stroop effect (RTs: r = .20, p = .090; Error rates: r = -.03, p =.82, Supplemental Figure 2A).  We then asked whether overall RT predicted the magnitude of the Size-Stroop effect for all children. We found that the more slowly a child performed the task, the less likely it was that this child would show a Size-Stroop effect in their reaction times (r =-.22, p = .059, Supplemental Figure 1B), but not in their error rates (r = .18, p = .13). However, we found that this was likely driven by the fact that children who performed the task more slowly were more likely to show either a very positive or a very negative Size Stroop effect (age correlation with absolute valued RTs, r = .33, p = .004, Supplemental Figure 2C); in other words, children whose reaction times were longer tended to have more variance in their RTs, leading to noisier estimates of the Size-Stroop effect.
+A final exploratory analysis examined whether age or variability in reaction times was more likely to account for the 3-year-olds’ lack of the Size-Stroop effect on RTs. We analyzed whether children’s age (in months) predicted the degree to which children made more errors or had slower RTs on the incongruent than the congruent trials.  It did not; age was uncorrelated with the size of the Stroop effect for RTs (RTs: r = `r round(AgevStroop$estimate,2)`, p = `r round(AgevStroop$p.value,2)`) or errors (Error rates: r = `r round(AgevStroopError$estimate,2)`, p = `r round(AgevStroop$p.value,2)`).  We then asked whether overall RT predicted the variability of the Size-Stroop effect for all children. We found that children who performed the task more slowly were more likely to show either a very positive or a very negative Size Stroop effect (age correlation with absolute valued Stroop effects, r = `r round(RTvAbsStroop$estimate,2)`, p = `r round(RTvAbsStroop$p.value,2)`); in other words, children whose reaction times were longer tended to have more variance in their RTs, leading to noisier estimates of the Size-Stroop effect.
 
 # EXPERIMENT 2: Replication in fast four-year-olds
-
 ## Errors
 ```{r}
 
@@ -218,8 +253,6 @@ allData_E2_errors <- read.csv(e2_fileName) %>%
   group_by(Congruency,Subject) %>%
   summarize(meanErrors = 1-mean(correct)) %>%
   group_by(Congruency)
-
-t.test(RTbyCond_4$mean[RTbyCond_4$Congruency==2], RTbyCond_4$mean[RTbyCond_4$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
 
 ```
 ### GLMM on errors
@@ -265,6 +298,7 @@ fastKidsList <- fastKids %>%
 ```
 
 ```{r}
+
 
 ## exclude from full data set
 fastKids_RT <- allData_E2 %>%
