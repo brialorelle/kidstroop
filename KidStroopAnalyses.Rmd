@@ -26,7 +26,7 @@ library(langcog)
 ## Load files and compute descriptives
 ```{r}
 ## Compiled data files for all children tested
-e1_fileName="data/Experiment1_80childrenUntrimmed21-Feb-2018.csv" #
+e1_fileName="data/Experiment1_All.csv" #
 e2_fileName="data/Experiment2_All.csv" # 
 
 ## Demographics sheet for E1
