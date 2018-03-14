@@ -1,4 +1,4 @@
-/raw_data/*
-/data/old/*
-/writing/old/*
+/raw_data_archive/*
+/data/z-old_archive/*
+/writing/old_old_archive/*
 .DS_Store
