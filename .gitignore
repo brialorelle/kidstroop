@@ -1,0 +1,4 @@
+/raw_data/*
+/data/old/*
+/writing/old/*
+.DS_Store

@@ -131,6 +131,15 @@ ErrorData_E1_SummarybyCondbyAge<- ErrorData_E1 %>%
   summarize(meanError = mean(meanSubError)*100, stdError = sd(meanSubError)*100)
 ```
 
+### Errors: check familiarization version didn't make a difference
+```{r}
+## Basic ANOVA
+aov.errors.famversion = ezANOVA(data = ErrorData_E1, dv=.(error), wid=.(Subject), within=.(Congruency), between=.(FamVersion), type=3)
+print(aov.errors.famversion)
+
+```
+  Children in these two familiarization versions did not perform more or less accurately on test trials (no main effect of familiarization version on error rates; F(1,77) = `r round(aov.errors.famversion$ANOVA$F[1],2)`, p = `r round(aov.errors.famversion$ANOVA$p[1],2)`) and or on congruent versus incongruent displays (no interaction of familiarization version with trial type on error rates; F(1,77) = `r round(aov.errors.famversion$ANOVA$F[3],2)`, p= `r round(aov.errors.famversion$ANOVA$p[3],2)`).
+
 ### Errors: main inferential statistics
 ```{r}
 ## Basic ANOVA
@@ -364,7 +373,7 @@ wrongPercent <- read.csv(e2_fileName) %>%
   summarize(percentErrors= numErrors / countTrials)
 
 ```
-In Experiment 2, children were on average `r round(mean(demographics_e2$Age..Mo.),2)` months of age (SD = `r round(sd(demographics_e2$Age..Mo.),2))` and there were `r sum(demographics_e2$M.F=="M")` males.
+In Experiment 2, children were on average `r round(mean(demographics_e2$Age..Mo.),2)` months of age (SD = `r round(sd(demographics_e2$Age..Mo.),2)` and there were `r sum(demographics_e2$M.F=="M")` males.
 
 For error analysis, we analyzed error rates in all 33 children who participated. These children completed an average of `r round(errorSubs$avgTrials[1],2)` trials (range=`r errorSubs$minTrials[1]`  to `r errorSubs$maxTrials[1]`) out of a possible 70. For reaction time analyses, we first applied the same exclusion criteria as in Experiment 1. We excluded trials where children responded incorrectly (that is, chose the visually bigger image; M = `r round(mean(wrongPercent$percentErrors)*100,2)`% of all trials) or took longer than 4 seconds to respond (M = `r round(mean(slowPercent$percentSlowTrials)*100,2)`% of correct trials).  No children were excluded on the basis of not having 5 or more test trials with correct responses made in less than 4 seconds.  
 
@@ -386,7 +395,6 @@ ErrorsbyCond_Summary <-ErrorsbyCond %>%
 ###### simple t-test
 ErrorByCondTest=t.test(ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==2], ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
 ```
-As in Experiment 1, children made more errors on incongruent displays (congruent M = `r round(ErrorsbyCond_Summary$meanErrors[1],2)`%, incongruent M = `r round(ErrorsbyCond_Summary$meanErrors[2],2)`%, t(32) = `r round(ErrorByCondTest$statistic,2)`, p = `r round(ErrorByCondTest$p.value,3)`, even though they made fewer errors overall when compared to 4-year-olds in Experiment 1 (see Figure 3A). 
 
 ### GLMM on errors
 ```{r}
@@ -397,10 +405,12 @@ allData_E2_errors_raw <- read.csv(e2_fileName) %>%
   mutate(error = 1-(correct))
 
 ## Exploratory analyses -- confirm with mixed effect glmer
-Errors_lmer_E2 = glmer(error ~ Congruency + (Congruency | Subject) + (Congruency|Item), data=allData_E2_errors_raw, family="binomial")
-
+Errors_glmer_E2 = glmer(error ~ Congruency + (Congruency | Subject) + (Congruency|Item), data=allData_E2_errors_raw, family="binomial")
+Errors_glmer_E2_out=data.frame(round(summary(Errors_glmer_E2)$coef),2)
 kable(summary(Errors_lmer_E2)$coef)
 ```
+As in Experiment 1, children made more errors on incongruent displays (congruent M = `r round(ErrorsbyCond_Summary$meanErrors[1],2)`%, incongruent M = `r round(ErrorsbyCond_Summary$meanErrors[2],2)`%, t(32) = `r round(ErrorByCondTest$statistic,2)`, p = `r round(ErrorByCondTest$p.value,3)`, even though they made fewer errors overall when compared to 4-year-olds in Experiment 1 (see Figure 3A). This effect was confirmed with the mixed effect model (congruency, B = `r Errors_glmer_E2_out$Estimate[2]`, SE = `r Errors_glmer_E2_out$Std..Error[2]`, t = `r Errors_glmer_E2_out$t.value[2]`, p = `r Errors_glmer_E2_out$Pr...t..[2]`)
+
 
 ### RT analyses - preprocessing
 ```{r}
@@ -453,7 +463,7 @@ allKids_RT <- allData_E2 %>%
 
 ```
 
-As planned, we then excluded children whose average RTs (across both conditions) were slower than 2 standard deviations from the average group RT (only 2 participants; mean RTs=`r round(allKids$avgRT[allKids$avgRT_zScore>2][1],0)`,`r round(allKids$avgRT[allKids$avgRT_zScore>2][2],0)`, z-scores=`r round(allKids$avgRT_zScore[allKids$avgRT_zScore>2],2)`).   After applying these inclusion criteria, we analyzed the RTs of 31 children (M = 53.39 months, SD = 3.21 months, 13 males), who completed an average of `r round(fastKidsTrials$meanTrials,2)` trials.
+As planned, we then excluded children whose average RTs (across both conditions) were slower than 2 standard deviations from the average group RT (only 2 participants; mean RTs=`r round(allKids$avgRT[allKids$avgRT_zScore>2][1],0)`,`r round(allKids$avgRT[allKids$avgRT_zScore>2][2],0)`, z-scores=`r round(allKids$avgRT_zScore[allKids$avgRT_zScore>2],2)`).   After applying these inclusion criteria, we analyzed the RTs of 31 children (M = 53.39 months, SD = 3.21 months, 13 males), who completed an average of `r round(fastKidsTrials$meanTrials,2)` trials. 
 
 ### RT analyses - Replication
 ```{r}
