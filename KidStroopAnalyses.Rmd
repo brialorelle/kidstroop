@@ -336,7 +336,7 @@ g2=ggplot(toPlot, aes(x = meanRT, y = AbsStroopRT, col=age)) +
   labs(x = "Average RT (ms)", y ="Absolute value of Stroop RT (ms)")
 
 SuppFigure2=ggarrange(g1,g2, nrow=1)
-ggsave("SuppFigure1-E2", width = 11.5, height = 5,unit =  "in", plot = SuppFigure2, device = "tiff",dpi = 300)
+ggsave("SuppFigure1-E2", width = 11.5, height = 5,unit =  "in", plot = SuppFigure2, path="./figures/", device = "tiff",dpi = 300)
 
 ```
 
@@ -406,8 +406,8 @@ allData_E2_errors_raw <- read.csv(e2_fileName) %>%
 
 ## Exploratory analyses -- confirm with mixed effect glmer
 Errors_glmer_E2 = glmer(error ~ Congruency + (Congruency | Subject) + (Congruency|Item), data=allData_E2_errors_raw, family="binomial")
-Errors_glmer_E2_out=data.frame(round(summary(Errors_glmer_E2)$coef),2)
-kable(summary(Errors_lmer_E2)$coef)
+Errors_glmer_E2_out=data.frame(round(summary(Errors_glmer_E2)$coef,3))
+kable(Errors_glmer_E2_out)
 ```
 As in Experiment 1, children made more errors on incongruent displays (congruent M = `r round(ErrorsbyCond_Summary$meanErrors[1],2)`%, incongruent M = `r round(ErrorsbyCond_Summary$meanErrors[2],2)`%, t(32) = `r round(ErrorByCondTest$statistic,2)`, p = `r round(ErrorByCondTest$p.value,3)`, even though they made fewer errors overall when compared to 4-year-olds in Experiment 1 (see Figure 3A). This effect was confirmed with the mixed effect model (congruency, B = `r Errors_glmer_E2_out$Estimate[2]`, SE = `r Errors_glmer_E2_out$Std..Error[2]`, t = `r Errors_glmer_E2_out$t.value[2]`, p = `r Errors_glmer_E2_out$Pr...t..[2]`)
 
@@ -631,7 +631,7 @@ g6=ggplot(ErrbyCond_E2_Plot, aes(x = Congruency, y = mean, fill=Congruency)) +
 
 
 compiledPlot=ggarrange(g1,g2,g3,g4,g5,g6, nrow=2)
-ggsave("E1andE2", width = 10, height = 6,unit =  "in", plot = compiledPlot, device = "tiff",dpi = 300)
+ggsave("Figure3-E1andE2", width = 10, height = 6,unit =  "in", plot = compiledPlot, path="./figures/", device = "tiff",dpi = 300)
 ```
 
 
@@ -669,7 +669,7 @@ ggplot(stroopItemEffects, aes(x = AdultStroopRT, y = childStroopRT)) +
   labs(x="Adults' Stroop Display Effects (ms)", y="4-year-olds' Stroop Display Effects (ms)")+
 xlim(c(-25, 75)) 
 
-ggsave("AdultKidCorr", width = 4, height = 4,unit =  "in", plot = last_plot(), device = "tiff",dpi = 300)
+ggsave("Figure4-AdultKidCorr", width = 4, height = 4,unit =  "in", plot = last_plot(), path="./figures/", device = "tiff",dpi = 300)
 ```
 
 We found that item effects for preschoolers and adults were highly correlated (r = `r round(adultKidCorr$estimate,2)`, p = `r round(adultKidCorr$p.value,2)`; Figure 4); the same pairs of objects generated stronger Stroop item effects in both adults and children. 
@@ -696,12 +696,12 @@ famRatingsByItem <- famRatings %>%
   summarize(meanBasic = mean(CorrectBasic)*100, meanSize = mean(CorrectSize)*100, meanIncorrect = mean(RespondedButIncorrect)*100) 
  
 ### Visualize basic-level ID by item
-ggplot(famRatingsByItem, aes(x = ImageFileName, y = meanBasic)) + 
+ggplot(famRatingsByItem, aes(x = ImageFileName, y = meanBasic,col=ImPairNumber)) + 
   geom_point()  +
   theme_few() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-ggplot(famRatingsByItem, aes(x = ImageFileName, y = meanSize)) + 
+ggplot(famRatingsByItem, aes(x = ImageFileName, y = meanSize, col=ImPairNumber)) + 
   geom_point()  +
   theme_few() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
@@ -873,6 +873,6 @@ plot2=ggplot(itemByID, aes(x = highBasicID, y = mean, fill=highBasicID)) +
   scale_x_discrete(labels=c("Poorly identified pairs","Well identified pairs")) 
 
 E3=ggarrange(plot2,plot1,nrow=1)
-ggsave("LowvHighIDPairs", width = 11.5, height = 5,unit =  "in", plot = E3, device = "tiff",dpi = 300)
+ggsave("Figure5-LowvHighIDPairs", width = 11.5, height = 5,unit =  "in", plot = E3, path="./figures/", device = "tiff",dpi = 300)
 
 ```
