@@ -879,19 +879,20 @@ stroopByID <- famRatingsByItem %>%
 
 plot1=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=meanBasicPair)) +
   geom_point() +
-  scale_color_viridis(option="D",name="\nbasic-level ID(%)") +
+  scale_color_viridis(option="D",name="\nBasic-level ID(%)") +
   theme_few() +
   theme(text = element_text(size=18)) +
   geom_smooth(method="lm", color="grey", alpha=.2) +
   theme(legend.position = "left") +
-  labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
-xlim(c(-25, 75))   +
+  # labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
+  labs(x="", y="")+
+   xlim(c(-25, 75))  +
    theme(aspect.ratio=1) + theme(axis.title = element_text(size = 15), 
     legend.text = element_text(size = 8), 
-    legend.title = element_text(size = 8), 
+    legend.title = element_text(size = 10), 
     legend.key = element_rect(fill = NA), 
     legend.background = element_rect(fill = NA), 
-    legend.position = c(0.19, 0.76))
+    legend.position = c(0.15, 0.85))
 
 plot2=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=highBasicID)) +
   geom_point() +
@@ -899,17 +900,11 @@ plot2=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=highBasic
   scale_color_manual(values=c("#39568CFF", "#B8DE29FF")) +
   theme(text = element_text(size=18)) +
   geom_smooth(method="lm", color="grey", alpha=.2) +
-  theme(legend.position = "none") +
-  labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
+  theme(legend.position = "none",aspect.ratio=1) +
+  labs(x="", y="")+
+  # labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
 xlim(c(-25, 75)) 
 
-# ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=meanSizePair)) +
-#   geom_point() +
-#   scale_color_viridis(option="A") +
-#   theme_few() +
-#   geom_smooth(method="lm", color="grey", alpha=.2)
-
-###
 
 itemByID <- RTbyCond_4_Raw %>%
    full_join(fastKids_RT) %>%
@@ -921,22 +916,21 @@ itemByID <- RTbyCond_4_Raw %>%
    group_by(highBasicID) %>%
    multi_boot_standard(col = "stroopRT") 
 
-plot3=ggplot(itemByID, aes(x = highBasicID, y = mean, fill=highBasicID)) +
-  theme_few()  +
-  theme(text = element_text(size=18)) +
-  geom_point() + 
-  geom_bar(stat = "identity", position= "dodge", alpha=.5) +
-  scale_fill_manual(values=c("#39568CFF", "#B8DE29FF")) +
-  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper),color=c("#39568CFF", "#B8DE29FF")) +
-  labs(y = "Average 4-year-olds' Stroop Display Effect (ms)", x ="") +  
-  theme(legend.position="none") +
-  scale_x_discrete(labels=c("Poorly-identified","Well-identified "))  +labs(x = NULL)
+# plot3=ggplot(itemByID, aes(x = highBasicID, y = mean, fill=highBasicID)) +
+#   theme_few()  +
+#   theme(text = element_text(size=18)) +
+#   geom_point() + 
+#   geom_bar(stat = "identity", position= "dodge", alpha=.5) +
+#   scale_fill_manual(values=c("#39568CFF", "#B8DE29FF")) +
+#   geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper),color=c("#39568CFF", "#B8DE29FF")) +
+#   labs(y = "Average 4-year-olds' Stroop Display Effect (ms)", x ="") +  
+#   theme(legend.position="none") +
+#   scale_x_discrete(labels=c("Poorly-identified","Well-identified "))  +labs(x = NULL)
 
-ggsave("Figure4-CorrelationbyID", width = 11.5, height = 5,unit =  "in", plot = plot1, path="./figures", device = "tiff",dpi = 300)
 
-ggsave("Figure4-CorrelationbyID.png", width = 7, height = 5.5,unit =  "in", plot = plot1, path="./figures", device = "png",dpi = 300)
-  
 E3=ggarrange(plot1,plot2,nrow=1)
-ggsave("Figure5-LowvHighIDPairs.tiff", width = 11.5, height = 6,unit =  "in", plot = E3, path="./figures/", device = "tiff",dpi = 300)
+ggsave("Figure4-AdultvsKids.tiff", width = 11.5, height = 6,unit =  "in", plot = E3, path="./figures/", device = "tiff",dpi = 300)
+ggsave("Figure4-AdultvsKids.png", width = 11.5, height = 6,unit =  "in", plot = E3, path="./figures/", device = "png",dpi = 300)
+
 
 ```
