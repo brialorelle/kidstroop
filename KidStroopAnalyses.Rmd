@@ -671,6 +671,8 @@ g6=ggplot(ErrbyCond_E2_Plot, aes(x = Congruency, y = mean, fill=Congruency)) +
 compiledPlot=ggarrange(g4,g5,g6,g1,g2,g3, nrow=2) # errors first, then RT
 #compiledPlot=ggarrange(g1,g2,g3,g4,g5,g6, nrow=2)
 ggsave("Figure3-E1andE2", width = 10, height = 6,unit =  "in", plot = compiledPlot, path="./figures/", device = "tiff",dpi = 300)
+
+ggsave("Figure3-E1andE2-pdf", width = 10, height = 6,unit =  "in", plot = compiledPlot, path="./figures/", device = "pdf",dpi = 300)
 ```
 
 
