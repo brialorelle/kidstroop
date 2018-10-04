@@ -1,7 +1,7 @@
 ---
 title: "Real-world size is automatically encoded in preschoolers' object representations: Open-source analyses"
 author: "Bria Long"
-date: "2/7/2018"
+date: "2/7/2018, updated 9/2018"
 output: html_document
 ---
 
@@ -21,6 +21,8 @@ library(scales)
 library(viridis)
 library(egg)
 library(langcog)
+library(forcats)
+library(cocor)
 ```
 
 ## Load files and compute descriptives
@@ -162,6 +164,13 @@ ErrorData_E1_SummarybyCondbyAge<- ErrorData_E1 %>%
 aov.errors.famversion = ezANOVA(data = ErrorData_E1, dv=.(error), wid=.(Subject), within=.(Congruency), between=.(FamVersion), type=3)
 print(aov.errors.famversion)
 
+## Descriptive stats
+ErrorData_E1_byFamCondition<- ErrorData_E1 %>%
+  group_by(Subject,Congruency,FamVersion) %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(FamVersion)  %>%
+  summarize(meanError = mean(meanSubError)*100, stdError = sd(meanSubError)*100)
+
 ```
   Children in these two familiarization versions did not perform more or less accurately on test trials (no main effect of familiarization version on error rates; F(1,74) = `r round(aov.errors.famversion$ANOVA$F[1],2)`, p = `r round(aov.errors.famversion$ANOVA$p[1],2)`) and or on congruent versus incongruent displays (no interaction of familiarization version with trial type on error rates; F(1,74) = `r round(aov.errors.famversion$ANOVA$F[3],2)`, p= `r round(aov.errors.famversion$ANOVA$p[3],2)`).
 
@@ -195,6 +204,18 @@ incong_4years=ErrorData_E1_CondbyAge$meanSubError[ErrorData_E1_CondbyAge$Congrue
 
 error_3YearOlds=t.test(incong_3years,cong_3years,alternative = "greater", paired=TRUE, var.equal = TRUE)
 error_4YearOlds=t.test(incong_4years,cong_4years,alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+# check if these results also hold when 2-sample t-test (for R1)
+error_3YearOlds_2samp=t.test(incong_3years,cong_3years, paired=TRUE, var.equal = TRUE)
+error_4YearOlds_2samp=t.test(incong_4years,cong_4years, paired=TRUE, var.equal = TRUE)
+
+# compute avg and sd of error difference
+avg_stroop_error_3yr=mean(incong_3years-cong_3years)
+sd_stroop_error_3yr=sd(incong_3years-cong_3years)
+
+avg_stroop_error_4yr=mean(incong_4years-cong_4years)
+sd_stroop_error_4yr=sd(incong_4years-cong_4years)
+
 ```
 
 ### Error results paragraph (E1)
@@ -206,6 +227,8 @@ F(1,74) = `r round(aov.errors$ANOVA$F,2)[2]`, p = `r round(aov.errors$ANOVA$p,2)
 Finally, planned ad-hoc comparisons confirmed that the Size-Stroop effect was observed at each age: 3-year-olds: congruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[1],2)`%, incongruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[2],2)`%, t(44) = `r round(error_3YearOlds$statistic,2)`, p = `r round(error_3YearOlds$p.value,2)`.
 
 4-year olds: congruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[3],2)`%, incongruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[4],2)`%, t(30) = `r round(error_4YearOlds$statistic,2)`, p = `r round(error_4YearOlds$p.value,2)` see Figure 3A.  Our GLMM model confirmed these analyses, finding that this effect generalized across individual subjects and items (B = `r Errors_glmer_E1_out$Estimate[2]`, SE = `r Errors_glmer_E1_out$Std..Error[2]`, Z =  `r Errors_glmer_E1_out$z.value[2]`, p < .001).
+
+Thus, while 3-year-olds made overall more errors, the relative difference in error rates across conditions was relatively similar between 3-year-olds and 4-year-olds (3-year-olds, Mincong – cong = `r round(avg_stroop_error_3yr,2)`%, SD = `r round(sd_stroop_error_3yr,2)`%; 4-year-olds, Mincong – cong = `r round(avg_stroop_error_4yr,2)`%, SD = `r round(sd_stroop_error_4yr,2)`%, see all individual data in Supplemental Figures 2 and 3).
 
 ## Reaction time analyses
 ### Read in data
@@ -279,6 +302,13 @@ stroopRT_3Years=t.test(RTbyCond_3$meanSubRT[RTbyCond_3$Congruency==2], RTbyCond_
 # 4-year-olds
 stroopRT_4Years=t.test(RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==2], RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
 
+## 2-sample t-tests
+# 3-year-olds
+stroopRT_3Years_2samp=t.test(RTbyCond_3$meanSubRT[RTbyCond_3$Congruency==2], RTbyCond_3$meanSubRT[RTbyCond_3$Congruency==1], paired=TRUE, var.equal = TRUE)
+
+# 4-year-olds
+stroopRT_4Years_2samp=t.test(RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==2], RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==1], paired=TRUE, var.equal = TRUE)
+
 stroopRT_4Years_cohensD <- RTbyCond_4 %>%
   group_by(Subject) %>%
   summarize(effectBySub = meanSubRT[Congruency==2] - meanSubRT[Congruency==1] ) %>%
@@ -309,34 +339,49 @@ However, we planned to examine results for 3- and 4-year-olds separately, as we 
 
 ### What predicts whether a child will show the Size-Stroop effect?
 ```{r}
-StroopbySub <- RTData_E1 %>%
-  group_by(Subject, Congruency) %>%
-  summarize (meanRT = mean(RT)) %>%
-  mutate(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1]) %>%
-  select(-c(Congruency,meanRT)) %>%
-  distinct(StroopRT)%>%
-  mutate( AbsStroopRT = abs(StroopRT))
-
-StroopErrorbySub <- ErrorData_E1 %>%
-  group_by(Subject, Congruency) %>%
-  summarize (meanError = mean(error)) %>%
-  left_join(demographics) %>%
-  mutate(StroopError = meanError[Congruency==2] - meanError[Congruency==1]) %>%
-  select(-c(Congruency,meanError)) 
 
 overallRT <- RTData_E1 %>%
   group_by(Subject) %>%
   summarize (meanRT = mean(RT), sdRT = sd(RT), age=Age[1])
 
-# Age vs. Stroop
-AgevStroop=cor.test(overallRT$age, StroopbySub$StroopRT)
+StroopbySub <- RTData_E1 %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanRT = mean(RT)) %>%
+  left_join(demographics) %>%
+  group_by(Subject) %>%
+  summarize(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1], Age=Age[1]) %>%
+  mutate(AbsStroopRT = abs(StroopRT)) %>%
+  left_join(overallRT) ## join overall RT data
+
+StroopErrorbySub <- ErrorData_E1 %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanError = mean(error)) %>%
+  left_join(demographics) %>%
+  group_by(Subject) %>%
+  summarize(StroopError = meanError[Congruency==2] - meanError[Congruency==1], Age=Age[1]) 
+
+# Age vs. Stroop RT
+AgevStroop=cor.test(StroopbySub$Age, StroopbySub$StroopRT)
+
+# Age vs. Stroop Error
+AgevAbsStroop=cor.test(StroopbySub$Age, StroopbySub$AbsStroopRT)
+
+# Age vs. Abs(StroopRT)
 AgevStroopError=cor.test(StroopErrorbySub$Age, StroopErrorbySub$StroopError)
+
+# Mean RT vs. Age
+RTvAge=cor.test(overallRT$meanRT, StroopbySub$Age)
 
 # Mean RT vs. Stroop
 RTvStroop=cor.test(overallRT$meanRT, StroopbySub$StroopRT)
 
-# Mean RT vs. abs(Stroopeffect)
+# Mean RT vs. Abs(StroopRT)
 RTvAbsStroop=cor.test(overallRT$meanRT, StroopbySub$AbsStroopRT)
+
+## use cocor package to compare correlations 
+StroopbySub_DF=as.data.frame(StroopbySub) # convert to dataframe for package functions.
+out = cocor(~StroopRT + meanRT | AbsStroopRT + meanRT, StroopbySub_DF)
+## Report williams' t (1959) though all tests are significant.
 
 # More variance in standard deviation by age?
 t.test(overallRT$sdRT[overallRT$age<48],overallRT$sdRT[overallRT$age>=48])
@@ -414,12 +459,17 @@ ErrorsbyCond <- read.csv(e2_fileName) %>%
   summarize(subErrors = 1-mean(correct)) %>%
   group_by(Congruency)
 
+ErrorsbyCond_E2 <- ErrorsbyCond
+
 ErrorsbyCond_Summary <-ErrorsbyCond %>%
   group_by(Congruency) %>%
   summarize(meanErrors = mean(subErrors)*100, sdErrors = sd(subErrors)*100)
  
 ###### simple t-test
 ErrorByCondTest=t.test(ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==2], ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+## check if holds with 2-sample
+ErrorByCondTest_2samp=t.test(ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==2], ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==1], paired=TRUE, var.equal = TRUE)
 ```
 
 ### GLMM on errors
@@ -520,6 +570,9 @@ RTbyCond_Summary <- RTbyCond %>%
 ###### simple t-test
 RTByCond_Test=t.test(RTbyCond$meanRTSub[RTbyCond$Congruency==2], RTbyCond$meanRTSub[RTbyCond$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
 
+## check if holds with 2-sample
+RTByCond_Test_2samp=t.test(RTbyCond$meanRTSub[RTbyCond$Congruency==2], RTbyCond$meanRTSub[RTbyCond$Congruency==1], paired=TRUE, var.equal = TRUE)
+
 # cohen's d
 effectBySub=RTbyCond$meanRTSub[RTbyCond$Congruency==2]-RTbyCond$meanRTSub[RTbyCond$Congruency==1];
 meanDiff=mean(effectBySub)
@@ -565,7 +618,7 @@ RTbyCond_3_Plot <- RTData_E1 %>%
   summarize(meanRT = mean(RT)) %>%
   group_by (Congruency) %>%
   multi_boot_standard(col = "meanRT")
-  
+
 RTbyCond_4_Plot <- RTData_E1 %>%
   filter(AgeGroup==2) %>%
   group_by (Congruency, Subject) %>%
@@ -675,6 +728,224 @@ ggsave("Figure3-E1andE2", width = 10, height = 6,unit =  "in", plot = compiledPl
 ggsave("Figure3-E1andE2-pdf", width = 10, height = 6,unit =  "in", plot = compiledPlot, path="./figures/", device = "pdf",dpi = 300)
 ```
 
+### Plot raw data (errors, RT) for each subject in each age group / experiment
+
+```{r}
+RTbyCond_3_Vals <- RTData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanRT = mean(RT)) 
+
+RTbyCond_4_Vals <- RTData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanRT = mean(RT)) 
+
+RTbyCond_E2_Vals <- fastKids_RT %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanRT = mean(RT)) 
+
+#######
+ErrbyCond_3_Vals <- ErrorData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  
+  
+ErrbyCond_4_Vals <- ErrorData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  
+
+ErrbyCond_E2_Vals <- allData_E2_errors_raw %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  
+###
+g1=ggplot(RTbyCond_3_Vals, aes(x = Congruency, y = meanRT)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  scale_colour_manual(values=c("#3C86A0", "#821919")) +
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  scale_y_continuous(limits=c(500,3000), oob = rescale_none) 
+
+
+g2=ggplot(RTbyCond_4_Vals, aes(x = Congruency, y = meanRT)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  scale_colour_manual(values=c("#3C86A0", "#821919"))+
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  scale_y_continuous(limits=c(500,3000), oob = rescale_none) 
+
+
+g3=ggplot(RTbyCond_E2_Vals, aes(x = Congruency, y = meanRT)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  scale_colour_manual(values=c("#3C86A0", "#821919"))+
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  scale_y_continuous(limits=c(1350,2100), oob = rescale_none) +
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  scale_y_continuous(limits=c(500,3000), oob = rescale_none) 
+
+###
+g4=ggplot(ErrbyCond_3_Vals, aes(x = Congruency, y = meanError)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  scale_colour_manual(values=c("#3C86A0", "#821919"))+
+  labs(y = "Mean error (%)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  ylim(c(0, 100)) +
+  ggtitle("E1: 3-Year-Olds")
+
+g5=ggplot(ErrbyCond_4_Vals, aes(x = Congruency, y = meanError)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  scale_colour_manual(values=c("#3C86A0", "#821919")) +
+  labs(y = "Mean error (%)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  ylim(c(0, 100)) +
+  ggtitle("E1: 4-Year-Olds")
+
+g6=ggplot(ErrbyCond_E2_Vals, aes(x = Congruency, y = meanError)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  scale_colour_manual(values=c("#3C86A0", "#821919")) +
+  labs(y = "Mean error (%)", x ="") +  
+  theme(legend.position="none",axis.ticks.x=element_blank()) +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  ylim(c(0, 100)) +
+  ggtitle("E2: Replication")
+
+
+compiledPlot=ggarrange(g4,g5,g6,g1,g2,g3, nrow=2) # errors first, then RT
+ggsave("S3-AllData.tiff", width = 11.5, height = 6,unit =  "in", plot = compiledPlot, path="./figures/", device = "tiff",dpi = 300)
+
+```
+
+### Plot individual stroop RT and error effects for each subject in each age group / experiment
+```{r} 
+StroopbySub_E1_3Yrs <- RTData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by(AgeGroup,Subject, Congruency) %>%
+  summarize(meanRT = mean(RT)) %>%
+  group_by(Subject) %>%
+  summarize(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1]) %>%
+  ungroup %>%
+  mutate(Subject = fct_reorder(Subject,StroopRT, .desc=TRUE))
+
+StroopbySub_E1_4Yrs <- RTData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by(AgeGroup,Subject, Congruency) %>%
+  summarize(meanRT = mean(RT)) %>%
+  group_by(Subject) %>%
+  summarize(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1]) %>%
+  ungroup %>%
+  mutate(Subject = fct_reorder(Subject,StroopRT, .desc=TRUE))
+
+StroopbySub_E2 <- fastKids_RT %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanRT = mean(RT)) %>%
+  group_by(Subject) %>%
+  summarize(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1]) %>%
+  ungroup %>%
+  mutate(Subject = fct_reorder(Subject,StroopRT, .desc=TRUE))
+###
+
+StroopErrorbySub_E1_3Years <- ErrorData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  group_by(Subject) %>%
+  summarize(StroopErr = meanError[Congruency==2] - meanError[Congruency==1]) %>%
+  ungroup %>%
+  mutate(Subject = fct_reorder(Subject,StroopErr, .desc=TRUE))
+
+StroopErrorbySub_E1_4Years <- ErrorData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  group_by(Subject) %>%
+  summarize(StroopErr = meanError[Congruency==2] - meanError[Congruency==1]) %>%
+  ungroup %>%
+  mutate(Subject = fct_reorder(Subject,StroopErr, .desc=TRUE))
+
+StroopErrorbySub_E2 <- ErrorsbyCond_E2 %>%
+  group_by(Subject) %>%
+  rename(meanError = subErrors)%>%
+  summarize(StroopErr = meanError[Congruency==2] - meanError[Congruency==1]) %>%
+  ungroup %>%
+  mutate(Subject = fct_reorder(Subject,StroopErr, .desc=TRUE))
+
+RTLimits=c(-800,800)
+ErrLimits=c(-1,1)
+### Plot stroop error and RT effects for individual subjects
+g1=ggplot(StroopbySub_E1_3Yrs, aes(x = Subject, y = StroopRT)) + 
+  geom_point(alpha=.75) +
+  theme_few() +
+  labs(y = "Stroop RT (ms)", x ="") +  
+  ylim(RTLimits) +
+    geom_hline(yintercept=0, linetype="dashed", 
+                color = "grey", size=.5) +
+  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
+
+g2=ggplot(StroopbySub_E1_4Yrs, aes(x = Subject, y = StroopRT)) + 
+  geom_point(alpha=.75) +
+  theme_few() +
+   ylim(RTLimits) +
+ labs(y = "Stroop RT (ms)", x ="") +  
+    geom_hline(yintercept=0, linetype="dashed", 
+                color = "grey", size=.5) +  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
+
+g3=ggplot(StroopbySub_E2, aes(x = Subject, y = StroopRT)) + 
+  geom_point(alpha=.75) +
+  theme_few() +
+   ylim(RTLimits) +
+  labs(y = "Stroop RT (ms)", x ="") +  
+      geom_hline(yintercept=0, linetype="dashed", 
+                color = "grey", size=.5) + 
+  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
+###
+g4=ggplot(StroopErrorbySub_E1_3Years, aes(x = Subject, y = StroopErr)) + 
+  geom_point(alpha=.75) +
+  theme_few() +
+  labs(y = "Stroop Errors (%)", x ="") +  
+   ylim(ErrLimits) +
+    geom_hline(yintercept=0, linetype="dashed", 
+                color = "grey", size=.5) +  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
+
+g5=ggplot(StroopErrorbySub_E1_4Years, aes(x = Subject, y = StroopErr)) + 
+  geom_point(alpha=.75) +
+  theme_few() +
+  ylim(ErrLimits) +
+  labs(y = "Stroop Errors (%)", x ="") +  
+    geom_hline(yintercept=0, linetype="dashed", 
+                color = "grey", size=.5) +
+  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
+
+g6=ggplot(StroopErrorbySub_E2, aes(x = Subject, y = StroopErr)) + 
+  geom_point(alpha=.75) +
+  theme_few() +
+  ylim(ErrLimits) +
+  labs(y = "Stroop Errors (%)", x ="") +  
+  geom_hline(yintercept=0, linetype="dashed", 
+                color = "grey", size=.5) +  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
+
+###
+DiffScores = ggarrange(g4,g5,g6,g1,g2,g3, nrow=2) # errors first, then RT
+ggsave("S2-IndivDiffScores.tiff", width = 11.5, height = 6,unit =  "in", plot = DiffScores, path="./figures/", device = "tiff",dpi = 300)
+
+```
 
 # Experiment 3
 ### Get Stroop item effects from E1/E2 and correlate with adults
@@ -687,6 +958,15 @@ stroopItemEffects<-RTbyCond_4_Raw %>%
   group_by(Item) %>%
   summarize(stroopRT = meanRT[Congruency==2] - meanRT[Congruency==1])
 
+# get Stroop item effects for all errors
+stroopItemEffects_Errors <- ErrorData_E1 %>%
+  mutate(Subject = as.factor(Subject)) %>%
+  full_join(allData_E2_errors_raw) %>%
+  group_by (Item, Congruency) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  %>%
+  group_by(Item) %>%
+  summarize(stroopError = meanError[Congruency==2] - meanError[Congruency==1])
 
 ## import adult data
 adultStroopItemEffects=read.csv("data/AdultItemEffects.csv") %>%
@@ -729,6 +1009,63 @@ noResponses = mean(100 - (famRatingsSummary$meanBasic+famRatingsSummary$meanInco
 ```
 Overall, children identified the correct basic-level category of the objects `r round(mean(famRatingsSummary$meanBasic),1)`% of the time, gave an incorrect answer `r round(mean(famRatingsSummary$meanIncorrect),1)`% of the time, and did not give a response `r round(noResponses,2)`% of the time. Some items were always identified correctly (i.e., apple, 100% identification rate), while others were rarely identified correctly (i.e., perfume bottle, 33.3% identification rate). 
 
+###Assess reliability of familiarity ratings
+```{r}
+## function to divide data based on # of subjects and subject indexes
+divideData <- function(numSubs,subIndexes){
+  shuffled_subs=sample(numSubs,numSubs,replace=FALSE)
+  g1 = shuffled_subs[1:(numSubs/2)]
+  g2 = shuffled_subs[((numSubs/2)+1):numSubs]
+  s1 = subIndexes[g1]
+  s2 = subIndexes[g2]
+  return(data.frame(s1,s2))
+}
+
+numSubs = length(unique(famRatings$Subject))
+subIndexes = unique(famRatings$Subject)
+reliability_basic_level=numeric(length=100) # open up variable for 100 iterations
+reliability_size=numeric(length=100)
+
+## for each iteration
+for (i in c(1:100)){
+  ## get two random samples
+  random_subjects=divideData(numSubs,subIndexes)
+  
+  sample_1 <- famRatings %>%
+    filter(Subject %in% random_subjects$s1) %>%
+    group_by(ImageFileName, ImPairNumber) %>%
+    summarize(meanBasic = mean(CorrectBasic)) 
+  
+  sample_2 <- famRatings %>%
+    filter(Subject %in% random_subjects$s2) %>%
+    group_by(ImageFileName, ImPairNumber) %>%
+    summarize(meanBasic = mean(CorrectBasic)) 
+  
+  out=cor.test(sample_1$meanBasic,sample_2$meanBasic) ## correlate avg basic-level recognizability across two sets of 12
+  reliability_basic_level[i]=out$estimate # save it
+}
+
+for (i in c(1:100)){
+  ## get two random samples
+  random_subjects=divideData(numSubs,subIndexes)
+  
+  sample_1 <- famRatings %>%
+    filter(Subject %in% random_subjects$s1) %>%
+    group_by(ImageFileName, ImPairNumber) %>%
+    summarize(meanSize = mean(CorrectSize)) 
+  
+  sample_2 <- famRatings %>%
+    filter(Subject %in% random_subjects$s2) %>%
+    group_by(ImageFileName, ImPairNumber) %>%
+    summarize(meanSize = mean(CorrectSize)) 
+  
+  out=cor.test(sample_1$meanSize,sample_2$meanSize) ## correlate avg basic-level recognizability across two sets of 12
+  reliability_size[i]=out$estimate # save it
+}
+```
+
+To assess the reliability of the ratings, we re-computed how correctly each item was identified in 100 random split halves of our 24 participants and correlated the identification rates in each split half; on average, children were relatively reliable across this set of 40 items, with an average split-half correlation of r=`r round(mean(reliability_basic_level),2)`, SD=`r round(sd(reliability_basic_level),2)`.
+
 ### Descriptive plot by item
 ```{r}
 famRatingsByItem <- famRatings %>%
@@ -746,7 +1083,6 @@ ggplot(famRatingsByItem, aes(x = ImageFileName, y = meanSize, col=ImPairNumber))
   geom_point()  +
   theme_few() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
 ##
 bbq <- famRatingsByItem %>%
   filter(ImageFileName == "07_grill.png")
@@ -825,6 +1161,8 @@ famRatingsLowSize <- famRatingsByItem %>%
 
 Here, we separated pairs where children identified any object within the correct size-category at a rate above the median across all items, as size-identification was relatively high (both items >`r round(medianSize,2)` correct, 8/20 pairs, M = M = `r  round(mean(famRatingsHighSize$meanSize),2)`% across items) and pairs where children identified either object within the correct size-category at a rate below the median (one or both items <`r round(medianSize,2)`% correct, 12/20 pairs, M=`r  round(mean(famRatingsLowSize$meanSize),2)`% across items).
 
+
+
 ## Difference in Stroop effects according to basic-level ID?
 ```{r}
 stroopItemEffectsHighID <- stroopItemEffects %>%
@@ -851,6 +1189,24 @@ appleDesk=stroopItemEffects$childStroopRT[stroopItemEffects$Item==1]
 ```
 If anything, pairs of objects that were well-identified at the basic level generated smaller Size-Stroop effects in RTs (M = `r round(mean(stroopItemEffectsHighID$childStroopRT),2)`ms) than pairs of objects that were not both well-identified (M = `r round(mean(stroopItemEffectsLowID$childStroopRT),2)`ms; unpaired two-sample t-test, (t(18)=`r round(highvLowBasic$statistic,2)`, p = `r round(highvLowBasic$p.value,2)`); Figure 5B).  For example, the Size-Stroop RT effect for the poorly recognized barbecue/die pair was `r round(bbqDie,2)`ms , whereas the Size-Stroop RT effect for the well-recognized desk/apple pair was `r round(appleDesk,2)`ms (Figure 5A).   
 
+## Difference in Stroop ERROR effects according to basic-level ID?
+```{r}
+stroopItemEffectsHighID_Errors <- stroopItemEffects_Errors %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, highBasicDisplays))
+  
+stroopItemEffectsLowID_Errors <- stroopItemEffects_Errors %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, lowBasicDisplays))
+  
+### output  
+mean(stroopItemEffectsHighID_Errors$stroopError)
+mean(stroopItemEffectsLowID_Errors$stroopError)
+highvLowBasic_Errors=t.test(stroopItemEffectsHighID_Errors$stroopError,stroopItemEffectsLowID_Errors$stroopError, var.equal = TRUE)
+
+```
+We also found the pattern of effects when we examined children’s Stroop error rates for highly-identified pairs (M= `r round(mean(stroopItemEffectsHighID_Errors$stroopError),2)`) vs. poorly-identified pairs (M= `r round(mean(stroopItemEffectsLowID_Errors$stroopError),2)`) this time examining effects across both 3-year-olds and 4-year-olds together (t(18)=`r round(highvLowBasic_Errors$statistic,2)`, p = `r round(highvLowBasic_Errors$p.value,2)`). 
+
 ## Difference in Stroop effects according to size ID?
 ```{r} 
 stroopItemEffectsHighSize <- stroopItemEffects %>%
@@ -867,11 +1223,26 @@ mean(stroopItemEffectsLowSize$childStroopRT)
 highvLowSize=t.test(stroopItemEffectsLowSize$childStroopRT,stroopItemEffectsHighSize$childStroopRT, var.equal = TRUE)
 ```
 
-As before, we found that pairs of objects whose sizes were poorly identified generated equivalent Size-Stroop effects than pairs with objects whose sizes were well identified (t(18)=`r round(highvLowSize$statistic,2)`, p = `r round(highvLowSize$p.value,2)`).  
+## Difference in Stroop ERROR effects according to size ID?
+```{r}
+stroopItemEffectsHighSize_Errors <- stroopItemEffects_Errors %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, highSizeDisplays))
+  
+stroopItemEffectsLowSize_Errors <- stroopItemEffects_Errors %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, lowSizeDisplays))
+  
+### output  
+mean(stroopItemEffectsHighSize_Errors$stroopError)
+mean(stroopItemEffectsLowSize_Errors$stroopError)
+highvLowSize_Error=t.test(stroopItemEffectsLowSize_Errors$stroopError,stroopItemEffectsHighSize_Errors$stroopError, var.equal = TRUE)
+```
+
+We also found the pattern of effects when we examined children’s Stroop error rates for pairs with higher  (M= `r round(mean(stroopItemEffectsHighSize_Errors$stroopError),2)`) vs. lower size identification rates (M= `r round(mean(stroopItemEffectsLowSize_Errors$stroopError),2)`) this time examining effects across both 3-year-olds and 4-year-olds together (t(18)=`r round(highvLowSize_Error$statistic,2)`, p = `r round(highvLowSize_Error$p.value,2)`). 
 
 ```{r}
 ## plot it!
-
 stroopByID <- famRatingsByItem %>%
   group_by(ImPairNumber) %>%
   mutate(meanBasicPair = mean(meanBasic), meanSizePair = mean(meanSize) ) %>%
@@ -907,7 +1278,6 @@ plot2=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=highBasic
   # labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
 xlim(c(-25, 75)) 
 
-
 itemByID <- RTbyCond_4_Raw %>%
    full_join(fastKids_RT) %>%
    group_by(imagePair, Congruency) %>%
@@ -917,18 +1287,6 @@ itemByID <- RTbyCond_4_Raw %>%
    mutate(highBasicID=is.element(imagePair, highBasicDisplays)) %>%
    group_by(highBasicID) %>%
    multi_boot_standard(col = "stroopRT") 
-
-# plot3=ggplot(itemByID, aes(x = highBasicID, y = mean, fill=highBasicID)) +
-#   theme_few()  +
-#   theme(text = element_text(size=18)) +
-#   geom_point() + 
-#   geom_bar(stat = "identity", position= "dodge", alpha=.5) +
-#   scale_fill_manual(values=c("#39568CFF", "#B8DE29FF")) +
-#   geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper),color=c("#39568CFF", "#B8DE29FF")) +
-#   labs(y = "Average 4-year-olds' Stroop Display Effect (ms)", x ="") +  
-#   theme(legend.position="none") +
-#   scale_x_discrete(labels=c("Poorly-identified","Well-identified "))  +labs(x = NULL)
-
 
 E3=ggarrange(plot1,plot2,nrow=1)
 ggsave("Figure4-AdultvsKids.tiff", width = 11.5, height = 6,unit =  "in", plot = E3, path="./figures/", device = "tiff",dpi = 300)
