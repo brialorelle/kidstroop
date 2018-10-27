@@ -259,11 +259,11 @@ congruent M = `r round(ErrorData_E1_SummarybyCond$meanError,2)[1]` (SD = `r roun
 incongruent M = `r round(ErrorData_E1_SummarybyCond$meanError,2)[2]` (SD = `r round(ErrorData_E1_SummarybyCond$stdError,2)[2]`%), 
 F(1,74) = `r round(aov.errors$ANOVA$F,2)[2]`, p = `r round(aov.errors$ANOVA$p,2)[2]`, ηG2 = `r round(aov.errors$ANOVA$ges,2)[2]`). The Size-Stroop effect was apparent throughout this age range; there was no interaction between age group and trial type (F(1,74) = `r round(aov.errors$ANOVA$F,2)[3]`, p = `r round(aov.errors$ANOVA$p,2)[3]`, ηG2 < `r round(aov.errors$ANOVA$ges,2)[3]`).  
 
-Finally, planned ad-hoc comparisons confirmed that the Size-Stroop effect was observed at each age: 3-year-olds: congruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[1],2)`%, incongruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[2],2)`%, t(44) = `r round(error_3YearOlds$statistic,2)`, p = `r round(error_3YearOlds$p.value,2)`.
+Finally, planned ad-hoc comparisons confirmed that the Size-Stroop effect was observed at each age: 3-year-olds: congruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[1],2)`%, incongruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[2],2)`%, t(44) = `r round(error_3YearOlds$statistic,2)`, p = `r round(error_3YearOlds$p.value,3)`.
 
-4-year olds: congruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[3],2)`%, incongruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[4],2)`%, t(30) = `r round(error_4YearOlds$statistic,2)`, p = `r round(error_4YearOlds$p.value,2)` see Figure 3A.  Our GLMM model confirmed these analyses, finding that this effect generalized across individual subjects and items (B = `r Errors_glmer_E1_out$Estimate[2]`, SE = `r Errors_glmer_E1_out$Std..Error[2]`, Z =  `r Errors_glmer_E1_out$z.value[2]`, p < .001).
+4-year olds: congruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[3],2)`%, incongruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[4],2)`%, t(30) = `r round(error_4YearOlds$statistic,2)`, p = `r round(error_4YearOlds$p.value,3)` see Figure 3A.  Our GLMM model confirmed these analyses, finding that this effect generalized across individual subjects and items (B = `r Errors_glmer_E1_out$Estimate[2]`, SE = `r Errors_glmer_E1_out$Std..Error[2]`, Z =  `r Errors_glmer_E1_out$z.value[2]`, p < .001).
 
-Thus, while 3-year-olds made overall more errors, the relative difference in error rates across conditions was relatively similar between 3-year-olds and 4-year-olds (3-year-olds, Mincong – cong = `r round(avg_stroop_error_3yr,2)`%, SD = `r round(sd_stroop_error_3yr,2)`%; 4-year-olds, Mincong – cong = `r round(avg_stroop_error_4yr,2)`%, SD = `r round(sd_stroop_error_4yr,2)`%, see all individual data in Supplemental Figures 2 and 3).
+Thus, while 3-year-olds made overall more errors, the relative difference in error rates across conditions was relatively similar between 3-year-olds and 4-year-olds (3-year-olds, Mincong – cong = `r round(avg_stroop_error_3yr,3)*100`%, SD = `r round(sd_stroop_error_3yr,3)*100`%; 4-year-olds, Mincong – cong = `r round(avg_stroop_error_4yr,3)*100`%, SD = `r round(sd_stroop_error_4yr,3)*100`%, see all individual data in Supplemental Figures 2 and 3).
 
 ## Reaction time analyses
 ### Read in data
@@ -303,7 +303,7 @@ lmerFullOut=data.frame(round(summary(RT_lmer_E1_full)$coef,3))
 
 ```
 
-Reaction Time Results. When we considered both 3- and 4-year-olds together, we found that, overall, children did not take longer to make visual size judgments on incongruent versus congruent displays (no main effect of trial type: congruent M= `r round(RTbyCond_All$meanRT,0)[1]`, incongruent M = `r round(RTbyCond_All$meanRT,0)[2]`, F(1,70) =`r round(aov.rt$ANOVA$F,2)[2]`, p = `r round(aov.rt$ANOVA$p,2)[2]`, ηG2 =  `r round(aov.rt$ANOVA$ges[2],2)`).  Three-year-olds took longer to make visual size judgments than four-year-olds (main effect of age group, F(1,72) = `r round(aov.rt$ANOVA$F,2)[1]`, p = `r round(aov.rt$ANOVA$p,2)[1]`, ηG2 = `r round(aov.rt$ANOVA$ges[1],2)`), though the interaction between age group and condition was not significant (F(1,70) = `r round(aov.rt$ANOVA$F,2)[3]`, p = `r round(aov.rt$ANOVA$p,2)[3]`, ηG2 = `r round(aov.rt$ANOVA$ges[3],2)`). 
+Reaction Time Results. When we considered both 3- and 4-year-olds together, we found that, overall, children did not take longer to make visual size judgments on incongruent versus congruent displays (no main effect of trial type: congruent M= `r round(RTbyCond_All$meanRT,0)[1]`, incongruent M = `r round(RTbyCond_All$meanRT,0)[2]`, F(1,70) =`r round(aov.rt$ANOVA$F,2)[2]`, p = `r round(aov.rt$ANOVA$p,2)[2]`, ηG2 =  `r round(aov.rt$ANOVA$ges[2],2)`).  
 
 ### Post-hoc RT analyses by age group - descriptives 
 ```{r}
@@ -397,14 +397,14 @@ StroopErrorbySub <- ErrorData_E1 %>%
 # Age vs. Stroop RT
 AgevStroop=cor.test(StroopbySub$Age, StroopbySub$StroopRT)
 
-# Age vs. Stroop Error
+# Age vs. AbsStroop ER
 AgevAbsStroop=cor.test(StroopbySub$Age, StroopbySub$AbsStroopRT)
 
-# Age vs. Abs(StroopRT)
+# Age vs. Stroop Error
 AgevStroopError=cor.test(StroopErrorbySub$Age, StroopErrorbySub$StroopError)
 
 # Mean RT vs. Age
-RTvAge=cor.test(overallRT$meanRT, StroopbySub$Age)
+# RTvAge=cor.test(overallRT$meanRT, StroopbySub$Age)
 
 # Mean RT vs. Stroop
 RTvStroop=cor.test(overallRT$meanRT, StroopbySub$StroopRT)
@@ -540,7 +540,7 @@ wrongPercent <- read.csv(e2_fileName) %>%
   summarize(percentErrors= numErrors / countTrials)
 
 ```
-In Experiment 2, children were on average `r round(mean(demographics_e2$Age..Mo.),2)` months of age (SD = `r round(sd(demographics_e2$Age..Mo.),2)` and there were `r sum(demographics_e2$M.F=="M")` males.
+In Experiment 2, children were on average `r round(mean(demographics_e2$Age..Mo.),2)` months of age (SD = `r round(sd(demographics_e2$Age..Mo.),2)`) and there were `r sum(demographics_e2$M.F=="M")` males.
 
 For error analysis, we analyzed error rates in all 33 children who participated. These children completed an average of `r round(errorSubs$avgTrials[1],2)` trials (range=`r errorSubs$minTrials[1]`  to `r errorSubs$maxTrials[1]`) out of a possible 70. For reaction time analyses, we first applied the same exclusion criteria as in Experiment 1. We excluded trials where children responded incorrectly (that is, chose the visually bigger image; M = `r round(mean(wrongPercent$percentErrors)*100,2)`% of all trials) or took longer than 4 seconds to respond (M = `r round(mean(slowPercent$percentSlowTrials)*100,2)`% of correct trials).  No children were excluded on the basis of not having 5 or more test trials with correct responses made in less than 4 seconds.  
 
@@ -938,119 +938,6 @@ ggsave("SuppFigure2-IndivData.tiff", width = 11.5, height = 6,unit =  "in", plot
 
 ```
 
-### Plot individual stroop RT and error effects for each subject in each age group / experiment
-```{r} 
-StroopbySub_E1_3Yrs <- RTData_E1 %>%
-  filter(AgeGroup==1) %>%
-  group_by(AgeGroup,Subject, Congruency) %>%
-  summarize(meanRT = mean(RT)) %>%
-  group_by(Subject) %>%
-  summarize(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1]) %>%
-  ungroup %>%
-  mutate(Subject = fct_reorder(Subject,StroopRT, .desc=TRUE))
-
-StroopbySub_E1_4Yrs <- RTData_E1 %>%
-  filter(AgeGroup==2) %>%
-  group_by(AgeGroup,Subject, Congruency) %>%
-  summarize(meanRT = mean(RT)) %>%
-  group_by(Subject) %>%
-  summarize(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1]) %>%
-  ungroup %>%
-  mutate(Subject = fct_reorder(Subject,StroopRT, .desc=TRUE))
-
-StroopbySub_E2 <- fastKids_RT %>%
-  group_by(Subject, Congruency) %>%
-  summarize (meanRT = mean(RT)) %>%
-  group_by(Subject) %>%
-  summarize(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1]) %>%
-  ungroup %>%
-  mutate(Subject = fct_reorder(Subject,StroopRT, .desc=TRUE))
-###
-
-StroopErrorbySub_E1_3Years <- ErrorData_E1 %>%
-  filter(AgeGroup==1) %>%
-  group_by (Congruency, Subject) %>%
-  summarize(meanError = mean(error)) %>%
-  group_by(Subject) %>%
-  summarize(StroopErr = meanError[Congruency==2] - meanError[Congruency==1]) %>%
-  ungroup %>%
-  mutate(Subject = fct_reorder(Subject,StroopErr, .desc=TRUE))
-
-StroopErrorbySub_E1_4Years <- ErrorData_E1 %>%
-  filter(AgeGroup==2) %>%
-  group_by (Congruency, Subject) %>%
-  summarize(meanError = mean(error)) %>%
-  group_by(Subject) %>%
-  summarize(StroopErr = meanError[Congruency==2] - meanError[Congruency==1]) %>%
-  ungroup %>%
-  mutate(Subject = fct_reorder(Subject,StroopErr, .desc=TRUE))
-
-StroopErrorbySub_E2 <- ErrorsbyCond_E2 %>%
-  group_by(Subject) %>%
-  rename(meanError = subErrors)%>%
-  summarize(StroopErr = meanError[Congruency==2] - meanError[Congruency==1]) %>%
-  ungroup %>%
-  mutate(Subject = fct_reorder(Subject,StroopErr, .desc=TRUE))
-
-RTLimits=c(-800,800)
-ErrLimits=c(-1,1)
-### Plot stroop error and RT effects for individual subjects
-g1=ggplot(StroopbySub_E1_3Yrs, aes(x = Subject, y = StroopRT)) + 
-  geom_point(alpha=.75) +
-  theme_few() +
-  labs(y = "Stroop RT (ms)", x ="") +  
-  ylim(RTLimits) +
-    geom_hline(yintercept=0, linetype="dashed", 
-                color = "grey", size=.5) +
-  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
-
-g2=ggplot(StroopbySub_E1_4Yrs, aes(x = Subject, y = StroopRT)) + 
-  geom_point(alpha=.75) +
-  theme_few() +
-   ylim(RTLimits) +
- labs(y = "Stroop RT (ms)", x ="") +  
-    geom_hline(yintercept=0, linetype="dashed", 
-                color = "grey", size=.5) +  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
-
-g3=ggplot(StroopbySub_E2, aes(x = Subject, y = StroopRT)) + 
-  geom_point(alpha=.75) +
-  theme_few() +
-   ylim(RTLimits) +
-  labs(y = "Stroop RT (ms)", x ="") +  
-      geom_hline(yintercept=0, linetype="dashed", 
-                color = "grey", size=.5) + 
-  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
-###
-g4=ggplot(StroopErrorbySub_E1_3Years, aes(x = Subject, y = StroopErr)) + 
-  geom_point(alpha=.75) +
-  theme_few() +
-  labs(y = "Stroop Errors (%)", x ="") +  
-   ylim(ErrLimits) +
-    geom_hline(yintercept=0, linetype="dashed", 
-                color = "grey", size=.5) +  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
-
-g5=ggplot(StroopErrorbySub_E1_4Years, aes(x = Subject, y = StroopErr)) + 
-  geom_point(alpha=.75) +
-  theme_few() +
-  ylim(ErrLimits) +
-  labs(y = "Stroop Errors (%)", x ="") +  
-    geom_hline(yintercept=0, linetype="dashed", 
-                color = "grey", size=.5) +
-  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
-
-g6=ggplot(StroopErrorbySub_E2, aes(x = Subject, y = StroopErr)) + 
-  geom_point(alpha=.75) +
-  theme_few() +
-  ylim(ErrLimits) +
-  labs(y = "Stroop Errors (%)", x ="") +  
-  geom_hline(yintercept=0, linetype="dashed", 
-                color = "grey", size=.5) +  theme(legend.position="none",axis.ticks.x=element_blank(), axis.text.x=element_blank())
-
-###
-DiffScores = ggarrange(g4,g5,g6,g1,g2,g3, nrow=2) # errors first, then RT
-ggsave("S2-IndivDiffScores.tiff", width = 11.5, height = 6,unit =  "in", plot = DiffScores, path="./figures/", device = "tiff",dpi = 300)
-
-```
 
 # Experiment 3
 ### Get Stroop item effects from E1/E2 and correlate with adults
