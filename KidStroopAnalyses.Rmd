@@ -438,7 +438,7 @@ lmer4YrsOut=data.frame(round(summary(RT_lmer_E1_4YearOlds)$coef,3))
 ```
 
 ### Reaction time results paragraph (E1)
-However, we planned to examine results for 3- and 4-year-olds separately, as we anticipated that 3-year-olds might not be able to perform the task as well as 4-year-olds.  These planned ad-hoc tests revealed that 4-year-olds showed the Size-Stroop effect in their RTs (congruent M = `r round(RTbyCond_4_Avg$meanRT,0)[1]`, SD = `r round(RTbyCond_4_Avg$sdRT,0)[1]`, incongruent M = `r round(RTbyCond_4_Avg$meanRT,0)[2]`, SD = `r round(RTbyCond_4_Avg$sdRT,0)[2]`, t(`r stroopRT_4Years$parameter[1]`) = `r round(stroopRT_4Years$statistic,2)`, p = `r round(stroopRT_4Years$p.value,2)`, Cohen’s d = `r round(stroopRT_4Years_cohensD$cohensD,2)`), while the 3-year-olds did not (congruent M = `r round(RTbyCond_3_Avg$meanRT,0)[1]`, SD = `r round(RTbyCond_3_Avg$sdRT,0)[1]`, incongruent M = `r round(RTbyCond_3_Avg$meanRT,0)[2]`, SD = `r round(RTbyCond_3_Avg$sdRT,0)[2]`, t(`r stroopRT_3Years$parameter[1]`) = `r round(stroopRT_3Years$statistic,2)`, p = `r round(stroopRT_3Years$p.value,2)`,  Cohen's d = `r round(stroopRT_3Years_cohensD$cohensD,2)`, Figure 3B).  
+However, we planned to examine results for 3- and 4-year-olds separately, as we anticipated that 3-year-olds might not be able to perform the task as well as 4-year-olds.  These planned ad-hoc tests revealed that 4-year-olds showed the Size-Stroop effect in their RTs (congruent M = `r round(RTbyCond_4_Avg$meanRT,0)[1]`, SD = `r round(RTbyCond_4_Avg$sdRT,0)[1]`, incongruent M = `r round(RTbyCond_4_Avg$meanRT,0)[2]`, SD = `r round(RTbyCond_4_Avg$sdRT,0)[2]`, t(`r stroopRT_4Years$parameter[1]`) = `r round(stroopRT_4Years$statistic,2)`, p = `r round(stroopRT_4Years$p.value,2)`, Cohen’s d = `r round(stroopRT_4Years_cohensD$cohensD,2)`), while the 3-year-olds did not (congruent M = `r round(RTbyCond_3_Avg$meanRT,0)[1]`, SD = `r round(RTbyCond_3_Avg$sdRT,0)[1]`, incongruent M = `r round(RTbyCond_3_Avg$meanRT,0)[2]`, SD = `r round(RTbyCond_3_Avg$sdRT,0)[2]`, t(`r stroopRT_3Years$parameter[1]`) = `r round(stroopRT_3Years$statistic,2)`, p = `r round(stroopRT_3Years$p.value,3)`,  Cohen's d = `r round(stroopRT_3Years_cohensD$cohensD,2)`, Figure 3B).  
 
 This same pattern of results was evident in the linear mixed effect model: that is, when combining across all children there was no congruency effect in reaction time (B = `r round(lmerFullOut$Estimate[2],3)`, SE = `r round(lmerFullOut$Std..Error[2],3)`, t = `r round(lmerFullOut$t.value[2],3)`, p = `r round(lmerFullOut$Pr...t..[2],3)`) and a trend towards an interaction between congruency and age (B = `r round(lmerFullOut$Estimate[3],3)`, SE = `r round(lmerFullOut$Std..Error[3],3)`, t = `r round(lmerFullOut$t.value[3],3)`, p = `r round(lmerFullOut$Pr...t..[3],3)`); however, congruency was significant when 4-year-olds were considered separately (congruency, B = `r lmer4YrsOut$Estimate[2]`, SE = `r lmer4YrsOut$Std..Error[2]`, t = `r lmer4YrsOut$t.value[2]`, p = `r lmer4YrsOut$Pr...t..[2]`)
 
@@ -491,15 +491,15 @@ out = cocor(~StroopRT + meanRT | AbsStroopRT + meanRT, StroopbySub_DF)
 toPlot <- StroopbySub %>%
   left_join(overallRT)
 
-base_size_sup3 = 12
-# base_size_sup3 = 18  # for making figure
+# base_size_sup3 = 12 # for rendering in-line
+base_size_sup3 = 18  # for making figure
 
 # make plots to visualize these
 g1=ggplot(toPlot, aes(x = meanRT, y = StroopRT, col=age)) + 
   geom_point()  +
   geom_smooth(method="lm", color="navy") +
   theme_few(base_size = base_size_sup3) +
-  scale_color_viridis() +
+  scale_color_viridis(option="A") +
   theme(legend.position = "none") +
   labs(x = "Average RT (ms)", y ="Stroop RT (ms)")
 
@@ -507,7 +507,7 @@ g2=ggplot(toPlot, aes(x = meanRT, y = AbsStroopRT, col=age)) +
   geom_point()  +
   geom_smooth(method="lm", color="navy") +
   theme_few(base_size = base_size_sup3) +
-  scale_color_viridis(name ="Age (months)") +
+  scale_color_viridis(option="A", name ="Age (months)") +
   labs(x = "Average RT (ms)", y ="Absolute value of Stroop RT (ms)")
 
 SuppFigure2=ggarrange(g1,g2, nrow=1)
@@ -525,7 +525,8 @@ Footnote: Age was not positively correlated with absolute valued Stroop RT effec
 ## Load in data, counting of trials for demographics
 ```{r}
 e2_fileName="data/Experiment2_All.csv" # 
-demographics_e2 <- read.csv("demographics/Experiment2.csv")
+demographics_e2 <- read.csv("demographics/Experiment2.csv") %>%
+  filter(Excluded_Slow==0)
 
 # for all subjects, count # of trials after practice
 errorSubs <- read.csv(e2_fileName) %>%
@@ -1004,10 +1005,10 @@ ggplot(stroopItemEffects, aes(x = AdultStroopRT, y = childStroopRT)) +
   geom_smooth(method="lm", color="navy") +
   #draws x and y axis line
   # theme(axis.line = element_line(color = 'black')) + 
-  labs(x="Adults' Stroop Display Effects (ms)", y="4-year-olds' Stroop Display Effects (ms)")+
+  labs(x="Adults' Stroop\nDisplay Effects (ms)", y="4-year-olds' Stroop\nDisplay Effects (ms)")+
 xlim(c(-25, 75)) 
 
-ggsave("Figure4-AdultKidCorr.png", width = 4, height = 4,unit =  "in", plot = last_plot(), path="./figures/", device = "tiff",dpi = 300)
+ggsave("Figure4-AdultKidCorr.tiff", width = 4, height = 4,unit =  "in", plot = last_plot(), path="./figures/", device = "tiff",dpi = 300)
 ```
 
 We found that item effects for preschoolers and adults were highly correlated (r = `r round(adultKidCorr$estimate,2)`, p = `r round(adultKidCorr$p.value,2)`; Figure 4); the same pairs of objects generated stronger Stroop item effects in both adults and children. 
@@ -1273,49 +1274,42 @@ stroopByID <- famRatingsByItem %>%
   mutate(meanBasicPair = mean(meanBasic), meanSizePair = mean(meanSize) ) %>%
   mutate(Item = as.factor(ImPairNumber)) %>%
   mutate(highBasicID=is.element(Item, highBasicDisplays)) %>%
-  left_join(stroopItemEffects)
+  left_join(stroopItemEffects) 
 
 plot1=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=meanBasicPair)) +
   geom_point() +
-  scale_color_viridis(option="D",name="\nBasic-level ID(%)") +
+  scale_color_viridis(option="D",name="Average\nbasic-level ID(%)") +
   theme_few() +
   theme(text = element_text(size=18)) +
   geom_smooth(method="lm", color="grey", alpha=.2) +
-  theme(legend.position = "left") +
-  # labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
-  labs(x="", y="")+
+  theme(legend.position = "top") +
+  labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
    xlim(c(-25, 75))  +
-   theme(aspect.ratio=1) + theme(axis.title = element_text(size = 15), 
-    legend.text = element_text(size = 8), 
-    legend.title = element_text(size = 10), 
+   theme(aspect.ratio=1) + theme(
+    legend.text = element_text(size = 9), 
+    legend.title = element_text(size = 12), 
     legend.key = element_rect(fill = NA), 
-    legend.background = element_rect(fill = NA), 
-    legend.position = c(0.15, 0.85))
+    legend.background = element_rect(fill = NA)) +
+    ggtitle("A.")
 
 plot2=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=highBasicID)) +
   geom_point() +
   theme_few() +
-  scale_color_manual(values=c("#39568CFF", "#B8DE29FF")) +
+  scale_color_manual(values=c("#39568CFF", "#B8DE29FF"), label = c("Well-identified", "Poorly-identified")) +
   theme(text = element_text(size=18)) +
   geom_smooth(method="lm", color="grey", alpha=.2) +
-  theme(legend.position = "none",aspect.ratio=1) +
-  labs(x="", y="")+
-  # labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
-xlim(c(-25, 75)) 
-
-itemByID <- RTbyCond_4_Raw %>%
-   full_join(fastKids_RT) %>%
-   group_by(imagePair, Congruency) %>%
-   summarize(meanRT = mean(RT)) %>%
-   mutate(stroopRT = meanRT[Congruency==2] - meanRT[Congruency==1]) %>%
-   distinct(imagePair, stroopRT) %>%
-   mutate(highBasicID=is.element(imagePair, highBasicDisplays)) %>%
-   group_by(highBasicID) %>%
-   multi_boot_standard(col = "stroopRT") 
+  theme(legend.position = "top",aspect.ratio=1) +
+  theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 0), 
+    legend.key = element_rect(fill = NA), 
+    legend.background = element_rect(fill = NA)) + 
+  labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
+xlim(c(-25, 75)) +
+    ggtitle("B.")
 
 E3=ggarrange(plot1,plot2,nrow=1)
 
-ggsave("Figure4-AdultvsKids.tiff", width = 6, height = 6,unit =  "in", plot = plot2, path="./figures/", device = "png",dpi = 300)
-
+ggsave("SuppFigure5-AdultvsKids-byFamiliarity.tiff", width = 9, height = 6,unit =  "in", plot = E3, path="./figures/", device = "png",dpi = 300)
 
 ```
