@@ -268,7 +268,7 @@ Finally, planned ad-hoc comparisons confirmed that the Size-Stroop effect was ob
 
 4-year olds: congruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[3],2)`%, incongruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[4],2)`%, t(30) = `r round(error_4YearOlds$statistic,2)`, p = `r round(error_4YearOlds$p.value,3)` see Figure 3A.  Our GLMM model confirmed these analyses, finding that this effect generalized across individual subjects and items (B = `r Errors_glmer_E1_out$Estimate[2]`, SE = `r Errors_glmer_E1_out$Std..Error[2]`, Z =  `r Errors_glmer_E1_out$z.value[2]`, p < .001).
 
-Thus, while 3-year-olds made overall more errors, the relative difference in error rates across conditions was relatively similar between 3-year-olds and 4-year-olds (3-year-olds, Mincong – cong = `r round(avg_stroop_error_3yr,3)*100`%, SD = `r round(sd_stroop_error_3yr,3)*100`%; 4-year-olds, Mincong – cong = `r round(avg_stroop_error_4yr,3)*100`%, SD = `r round(sd_stroop_error_4yr,3)*100`%, see all individual data in Supplemental Figures 2 and 3).
+....Indeed the relative difference in error rates across conditions was relatively similar between 3-year-olds and 4-year-olds (3-year-olds, Mincong – cong = `r round(avg_stroop_error_3yr,3)*100`%, SD = `r round(sd_stroop_error_3yr,3)*100`%; 4-year-olds, Mincong – cong = `r round(avg_stroop_error_4yr,3)*100`%, SD = `r round(sd_stroop_error_4yr,3)*100`%, see all individual data in Supplemental Figures 2 and 3).
 
 
 ### Do error rates differ across the experiment? Seems relatively consistent
@@ -516,7 +516,7 @@ ggsave("SuppFigure3-Correlations.tiff", width = 11.5, height = 5,unit =  "in", p
 ```
 
 ### Exploratory correlations paragraph
-A final exploratory analysis examined whether age or variability in reaction times was more likely to account for the 3-year-olds’ lack of the Size-Stroop effect on RTs. We analyzed whether children’s age (in months) predicted the degree to which children made more errors or had slower RTs on the incongruent than the congruent trials.  Age was only weakly correlated with the size of the Stroop effect for RTs (RTs: r = `r round(AgevStroop$estimate,2)`, p = `r round(AgevStroop$p.value,2)`) or errors (Error rates: r = `r round(AgevStroopError$estimate,2)`, p = `r round(AgevStroopError$p.value,2)`).  We then asked whether overall RT predicted the variability of the Size-Stroop effect for all children. We found that children who performed the task more slowly were more likely to show either a very positive or a very negative Size Stroop effect (age correlation with absolute valued Stroop effects, r = `r round(RTvAbsStroop$estimate,2)`, p = `r round(RTvAbsStroop$p.value,2)`); in other words, children whose reaction times were longer tended to have more variance in their RTs, leading to noisier estimates of the Size-Stroop effect.
+Age was only weakly correlated with the size of the Stroop effect for RTs (RTs: r = `r round(AgevStroop$estimate,2)`, p = `r round(AgevStroop$p.value,2)`) or errors (Error rates: r = `r round(AgevStroopError$estimate,2)`, p = `r round(AgevStroopError$p.value,2)`).  We then asked whether overall RT predicted the variability of the Size-Stroop effect for all children. We found that children who performed the task more slowly were more likely to show either a very positive or a very negative Size Stroop effect (age correlation with absolute valued Stroop effects, r = `r round(RTvAbsStroop$estimate,2)`, p = `r round(RTvAbsStroop$p.value,2)`); in other words, children whose reaction times were longer tended to have more variance in their RTs, leading to noisier estimates of the Size-Stroop effect.
 
 Footnote: Age was not positively correlated with absolute valued Stroop RT effects, r = `r round(AgevAbsStroop$estimate,2)`, p = `r round(AgevAbsStroop$p.value,2)`).
 
@@ -525,8 +525,7 @@ Footnote: Age was not positively correlated with absolute valued Stroop RT effec
 ## Load in data, counting of trials for demographics
 ```{r}
 e2_fileName="data/Experiment2_All.csv" # 
-demographics_e2 <- read.csv("demographics/Experiment2.csv") %>%
-  filter(Excluded_Slow==0)
+demographics_e2 <- read.csv("demographics/Experiment2.csv") 
 
 # for all subjects, count # of trials after practice
 errorSubs <- read.csv(e2_fileName) %>%
@@ -605,7 +604,6 @@ Errors_glmer_E2_out=data.frame(round(summary(Errors_glmer_E2)$coef,3))
 kable(Errors_glmer_E2_out)
 ```
 ### Error results paragraph
-
 As in Experiment 1, children made more errors on incongruent displays (congruent M = `r round(ErrorsbyCond_Summary$meanErrors[1],2)`%, incongruent M = `r round(ErrorsbyCond_Summary$meanErrors[2],2)`%, t(32) = `r round(ErrorByCondTest$statistic,2)`, p = `r round(ErrorByCondTest$p.value,3)`, even though they made fewer errors overall when compared to 4-year-olds in Experiment 1 (see Figure 3A). This effect was confirmed with the mixed effect model (congruency, B = `r Errors_glmer_E2_out$Estimate[2]`, SE = `r Errors_glmer_E2_out$Std..Error[2]`, t = `r Errors_glmer_E2_out$z.value[2]`, p = `r Errors_glmer_E2_out$Pr...z..[2]`)
 
 
@@ -1144,45 +1142,6 @@ BothPoorlyIdentified=highBasic$ImPairNumber[highBasic$countHighBasic==0]
 ### Basic-level ID paragraph
 We then grouped together pairs where the basic-level identities of both the big and small objects were well identified (greater than 75%, `r length(highBasicDisplays)`/20 pairs, M = `r  round(mean(famRatingsHighBasic$meanBasic),2)` % across all 16 items) and pairs where one or more items were poorly identified (75% or less; `r length(lowBasicDisplays)`/20 pairs, M = `r  round(mean(famRatingsLowBasic$meanBasic),2)`% across all 24 items).  Most pairs contained only one item that was poorly identified (8/12 pairs) and four pairs contained two items that were both poorly identified. See Figure 5A for an example of a pair of objects where both items were poorly identified by 4-year-olds (the barbeque, `r round(bbq$meanBasic,2)`% identification rate, the die, `r round(die$meanBasic,2)`% identification rate) and a pair where both items were well identified by 4-year-olds (the desk, `r round(desk$meanBasic,2)`% identification rate; the apple, `r round(apple$meanBasic,2)`% identification rate). 
 
-### How well did children identify the size of the objects?
-```{r}
-famRatingsBySub_Misidentifications<- famRatings %>%
-  filter(RespondedButIncorrect==1) %>%
-  group_by(Subject) %>%
-  summarize(meanSize = mean(CorrectSize)*100)
-
-misIDvChance=t.test(famRatingsBySub_Misidentifications$meanSize, mu=.5)
-```
-### Size identification paragraph
-In a second analysis, we counted as correct any identification of the target as an object in the same real-world size category, as most often, children’s misidentifications were of objects from the same real-world size category as the target (though rarely from the same taxonomic superordinate category; `r round(mean(famRatingsBySub_Misidentifications$meanSize),1)`% of misidentifications, t-test against 50%, t(23) = `r round(misIDvChance$statistic,2)`, p = `r round(misIDvChance$p.value,3)`.  
-
-### Separate items by a median split on size identification for further analysis
-```{r}
-highSize <- famRatings %>%
-  group_by(ImageFileName,ImPairNumber) %>%
-  summarize(meanSize = mean(CorrectSize)) 
-# get median of size identification
-medianSize = median(highSize$meanSize)
-#
-highSize <- highSize %>%
-  mutate(highSize = meanSize >= medianSize) %>%
-  group_by(ImPairNumber) %>%
-  summarize(countHighSize= sum(highSize)) 
-
-## Output size identification on these sets of "well" vs "poorly" size identified displays
-highSizeDisplays=highSize$ImPairNumber[highSize$countHighSize==2] ## 2 -- both items should be "true", i.e., greater than 75% threshold
-famRatingsHighSize <- famRatingsByItem %>%
-  filter(is.element(ImPairNumber,highSizeDisplays))
-##
-lowSizeDisplays=highSize$ImPairNumber[highSize$countHighSize<2]
-famRatingsLowSize <- famRatingsByItem %>%
-  filter(is.element(ImPairNumber,lowSizeDisplays))
-
-```
-
-Here, we separated pairs where children identified any object within the correct size-category at a rate above the median across all items, as size-identification was relatively high (both items >`r round(medianSize,2)` correct, 8/20 pairs, M = M = `r  round(mean(famRatingsHighSize$meanSize),2)`% across items) and pairs where children identified either object within the correct size-category at a rate below the median (one or both items <`r round(medianSize,2)`% correct, 12/20 pairs, M=`r  round(mean(famRatingsLowSize$meanSize),2)`% across items).
-
-
 
 ## Are there difference in Size-Stroop effects according to identification?
 ### ...for reaction times
@@ -1229,6 +1188,46 @@ highvLowBasic_Errors=t.test(stroopItemEffectsHighID_Errors$stroopError,stroopIte
 
 ```
 We also found the pattern of effects when we examined children’s Stroop error rates for highly-identified pairs (M= `r round(mean(stroopItemEffectsHighID_Errors$stroopError),2)`) vs. poorly-identified pairs (M= `r round(mean(stroopItemEffectsLowID_Errors$stroopError),2)`) this time examining effects across both 3-year-olds and 4-year-olds together (t(18)=`r round(highvLowBasic_Errors$statistic,2)`, p = `r round(highvLowBasic_Errors$p.value,2)`). 
+
+
+### How well did children identify the size of the objects?
+```{r}
+famRatingsBySub_Misidentifications<- famRatings %>%
+  filter(RespondedButIncorrect==1) %>%
+  group_by(Subject) %>%
+  summarize(meanSize = mean(CorrectSize)*100)
+
+misIDvChance=t.test(famRatingsBySub_Misidentifications$meanSize, mu=.5)
+```
+### Size identification paragraph
+In a second analysis, we counted as correct any identification of the target as an object in the same real-world size category, as most often, children’s misidentifications were of objects from the same real-world size category as the target (though rarely from the same taxonomic superordinate category; `r round(mean(famRatingsBySub_Misidentifications$meanSize),1)`% of misidentifications, t-test against 50%, t(23) = `r round(misIDvChance$statistic,2)`, p = `r round(misIDvChance$p.value,3)`.  
+
+### Separate items by a median split on size identification for further analysis
+```{r}
+highSize <- famRatings %>%
+  group_by(ImageFileName,ImPairNumber) %>%
+  summarize(meanSize = mean(CorrectSize)) 
+# get median of size identification
+medianSize = median(highSize$meanSize)
+#
+highSize <- highSize %>%
+  mutate(highSize = meanSize >= medianSize) %>%
+  group_by(ImPairNumber) %>%
+  summarize(countHighSize= sum(highSize)) 
+
+## Output size identification on these sets of "well" vs "poorly" size identified displays
+highSizeDisplays=highSize$ImPairNumber[highSize$countHighSize==2] ## 2 -- both items should be "true", i.e., greater than 75% threshold
+famRatingsHighSize <- famRatingsByItem %>%
+  filter(is.element(ImPairNumber,highSizeDisplays))
+##
+lowSizeDisplays=highSize$ImPairNumber[highSize$countHighSize<2]
+famRatingsLowSize <- famRatingsByItem %>%
+  filter(is.element(ImPairNumber,lowSizeDisplays))
+
+```
+
+Here, we separated pairs where children identified any object within the correct size-category at a rate above the median across all items, as size-identification was relatively high (both items >`r round(medianSize,2)` correct, 8/20 pairs, M = M = `r  round(mean(famRatingsHighSize$meanSize),2)`% across items) and pairs where children identified either object within the correct size-category at a rate below the median (one or both items <`r round(medianSize,2)`% correct, 12/20 pairs, M=`r  round(mean(famRatingsLowSize$meanSize),2)`% across items).
+
 
 ## Are there difference in Size-Stroop effects according to size identification?
 ### ...for reaction times?
