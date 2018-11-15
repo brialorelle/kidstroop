@@ -9,5 +9,7 @@ Manuscript is written in Microsoft word; results paragraphs are duplicated acros
 
 Konkle, T., & Oliva, A. (2012). A familiar-size Stroop effect: real-world size is an automatic property of object representation. Journal of Experimental Psychology: Human Perception and Performance, 38(3), 561.
 
+See main analyses at 
+https://brialorelle.github.io/kidstroop/KidStroopAnalyses.html
 
 Feel free to email me at bria@stanford.edu with questions.
