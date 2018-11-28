@@ -1281,7 +1281,7 @@ plot1=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=meanBasic
   theme_few(base_size=14) +
   geom_smooth(method="lm", color="grey", alpha=.2) +
   theme(legend.position = "top") +
-  labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
+  labs(x="Adults' Stroop \n Item-Pair Effects (ms)", y="4-year-olds' Stroop \n Item-Pair Effects (ms)")+
    xlim(c(-25, 75))  +
    theme(aspect.ratio=1) + theme(
     legend.text = element_text(size = 9), 
@@ -1300,7 +1300,7 @@ plot2=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=highBasic
     legend.title = element_text(size = 0), 
     legend.key = element_rect(fill = NA), 
     legend.background = element_rect(fill = NA)) + 
-  labs(x="Adults' Stroop \n Display Effects (ms)", y="4-year-olds' Stroop \n Display Effects (ms)")+
+  labs(x="Adults' Stroop \n Item-Pair Effects (ms)", y="4-year-olds' Stroop \n Item-Pair Effects (ms)")+
 xlim(c(-25, 75)) 
 
 E3=ggarrange(plot1,plot2,nrow=1)
