@@ -1,0 +1,1310 @@
+---
+title: "Real-world size is automatically encoded in preschoolers' object representations: Open-source analyses"
+author: "Bria Long"
+date: "2/7/2018, updated fall 2018"
+output: 
+  html_document:
+    toc: true # make table of contents
+    toc_depth: 3
+    theme: united
+    highlight: tango 
+---
+
+```{r setup, include=FALSE}
+## Libraries
+knitr::opts_chunk$set(echo = TRUE)
+##
+library(reshape2)
+library(dplyr)
+library(ez)
+library(lme4)
+library(knitr)
+library(lmerTest)
+library(ggplot2)
+library(ggthemes)
+library(scales)
+library(viridis)
+library(egg)
+library(langcog)
+library(forcats)
+library(cocor)
+```
+
+# Experiment 1
+## Preprocessing
+### Load files and compute descriptives
+```{r}
+## Compiled data files for all children tested
+e1_fileName="data/Experiment1_All.csv" #
+
+## Demographics sheet for E1
+demographics <- read.csv("demographics/Experiment1_SubjectsbyAge.csv") %>%
+  mutate(Subject = as.factor(Subject))
+
+# avg and std of age
+ageOut <- demographics %>%
+  distinct(FileName, Age, AgeGroup) %>% 
+  group_by(AgeGroup) %>%
+  summarize(meanAge=mean(Age), sdAge=sd(Age), numKids=length(Age))
+
+# for all subjects, count # of slow trials that were correct
+slowPercent <- read.csv(e1_fileName) %>%
+  mutate(Subject = factor(id))  %>%
+  filter(trial>10, correct ==1)  %>% 
+  group_by(Subject) %>%
+  summarize(countTrials = length(RT), slowTrials = sum(RT>4000)) %>%
+  group_by(Subject) %>%
+  summarize(percentSlowTrials = slowTrials / countTrials)
+```
+
+### Compute set of included subjects and their basic descriptives
+```{r}
+# Subjects who have 5 or more trials after practice
+includedSubs_PC <- read.csv(e1_fileName) %>%
+  mutate(Subject = factor(id), Congruency = factor(condition))  %>%
+  left_join(demographics) %>% # join ages
+  filter(trial>10)  %>% # eliminate practice trials
+  group_by(FileName, Subject, Congruency, AgeGroup, Age)  %>%
+  summarize(countTrials = length(RT))  %>% # how many trails per condition
+  filter(countTrials>4) %>% # exclude if less than five speeded correct per cond
+  group_by(FileName, Subject, AgeGroup, Age)  %>%
+  mutate(countTrialsOK = length(countTrials)) %>%
+  filter(countTrialsOK==2) %>% # 5 or more trials in each condition
+  group_by(FileName, Subject, AgeGroup, Age,countTrials) 
+
+# Compile list of included subjects who had 5 or more speeded correct trials in each condition
+includedSubs_RT <- read.csv(e1_fileName) %>%
+  mutate(Subject = factor(id), Congruency = factor(condition))  %>%
+  left_join(demographics) %>% # join ages
+  filter(RT<4000, correct == 1, trial>10)  %>% # speeded, correct trials after practice
+  group_by(FileName, Subject, Congruency, AgeGroup, Age)  %>%
+  summarize(countTrials = length(RT))  %>% # how many trails per condition
+  filter(countTrials>4) %>% # exclude if less than five speeded correct per cond
+  group_by(FileName, Subject, AgeGroup, Age)  %>%
+  mutate(countTrialsOK = length(countTrials)) %>%
+  filter(countTrialsOK==2) %>% # 5 or more trials in each condition
+  group_by(FileName, Subject, AgeGroup, Age,countTrials) 
+
+## which subjects were excluded?
+excludedSubs_RT <- demographics %>%
+  filter(!is.element(FileName,includedSubs_RT$FileName))
+
+excludedSubs_PC <- demographics %>%
+  filter(!is.element(FileName,includedSubs_PC$FileName))
+
+#  report out summary for the RT demographics 
+trialSummary_RT <- includedSubs_RT %>%
+  group_by(Subject) %>%
+  mutate(countTrialsTotal = sum(countTrials)) %>% # count total trials for reporting
+  distinct(Subject, countTrialsTotal, AgeGroup, Age) %>%
+  group_by(AgeGroup) %>%
+  summarize(uniqueSubjects = length(unique(Subject)), countTrialsAvg = mean(countTrialsTotal), countTrialsSD=sd(countTrialsTotal), AgeMean=mean(Age), AgeSD=sd(Age))
+
+# report out summary for the PC demographics 
+trialSummary_PC <- includedSubs_PC %>%
+  group_by(Subject) %>%
+  mutate(countTrialsTotal = sum(countTrials)) %>% # count total trials for reporting
+  distinct(Subject, countTrialsTotal, AgeGroup, Age) %>%
+  group_by(AgeGroup) %>%
+  summarize(uniqueSubjects = length(unique(Subject)), countTrialsAvg = mean(countTrialsTotal), countTrialsSD=sd(countTrialsTotal), AgeMean=mean(Age), AgeSD=sd(Age))
+
+
+```
+### Subjects descriptive paragraph for E1
+One child began the task but did not complete more than two trials. This left us with `r ageOut$numKids[1]+ageOut$numKids[2]` children in the final sample, with `r ageOut$numKids[1]` 3-year-olds (M = `r round(ageOut$meanAge,2)[1]` months, SD = `r round(ageOut$sdAge,2)[1]`  months) and `r ageOut$numKids[2]` 4-year-olds (M = `r round(ageOut$meanAge,2)[2]`  months, SD = `r round(ageOut$sdAge,2)[2]`  months).   
+
+We assessed both accuracy and reaction time dependent measures, both as a single group of participants, and separately for 3 and 4 year-old groups, within trials in which children were on-task.  To do so, we adopted the following exclusion criteria and data-trimming methods.  First, we excluded all geometric shape trials and, a priori, the first 10 trials from the test phase.  Three children (all 3-year-olds) did not complete more than five trials in each condition after these first 10 trials, and were excluded from all subsequent analyses. Error analyses were thus conducted on `r length(unique(includedSubs_PC$FileName))` children. Error analyses were thus conducted on the remaining 76 children, with 3-year-olds who on average contributed `r round(trialSummary_PC$countTrialsAvg,2)[1]`trials and 4-year-olds who on average contributed `r round(trialSummary_PC$countTrialsAvg,2)[2]` trials to error analyses.
+
+For reaction time analyses, we additionally excluded incorrect trials and trials with RTs slower than 4 seconds (`r round(mean(slowPercent$percentSlowTrials)*100,2)` of correct trials).  This RT cutoff has previously been used as a cutoff when analyzing preschooler’s reaction times in a touchscreen-based task (Frank et al., 2016), in order to eliminate extra-long trials where children are likely off-task.  Children were included if, after this RT trimming procedure, they had at least 5 correct trials per condition (congruent, incongruent). Four additional children were excluded for not meeting these criteria, all 3-year-olds. This left us with 72 children for RT analyses: `r trialSummary_RT$uniqueSubjects[1]`  three-year-olds (M = `r round(trialSummary_RT$AgeMean,2)[1]` months, SD = `r round(trialSummary_RT$AgeSD,2)[1]` months) and all of the 31 four-year-olds. On avearge, 3-year-olds contributed  `r round(trialSummary_RT$countTrialsAvg,2)[1]` correct, speeded trials to RT analyses, and 4-year-olds contributed `r round(trialSummary_RT$countTrialsAvg,2)[2]` correct, speeded trials to RT analyses.
+
+## Error analyses
+### Load data
+```{r}
+### ERRORS ###  read in the data 
+
+# list of subjects included
+demoUnique_PC <- includedSubs_PC %>%
+  group_by(Subject) %>%
+  select(-c(Congruency, countTrials))  %>%
+  distinct(Subject,AgeGroup)
+
+# to look at errors after practice trials
+ErrorData_E1<- read.csv(e1_fileName) %>%
+  mutate(Subject=factor(id)) %>%
+  select(-(id)) %>%
+  left_join(demographics) %>% # joins exact age information to datafile
+  inner_join(demoUnique_PC) %>%
+  mutate(error = 1-correct) %>%
+  filter(trial > 10) %>% # get rid of practice trials
+  mutate(Item = factor(imagePair), Subject=factor(Subject), Congruency = factor(condition), AgeGroup = factor(AgeGroup), FamVersion = factor(FamVersion))
+
+## for use in posthoc error analyses
+ErrorData_E1_AllTrials<- read.csv(e1_fileName) %>%
+  mutate(Subject=factor(id)) %>%
+  select(-(id)) %>%
+  left_join(demographics) %>% # joins exact age information to datafile
+  inner_join(demoUnique_PC) %>%
+  mutate(error = 1-correct) %>%
+  mutate(Item = factor(imagePair), Subject=factor(Subject), Congruency = factor(condition), AgeGroup = factor(AgeGroup), FamVersion = factor(FamVersion))
+
+# to only look at errors during practice trials
+ErrorData_E1_Practice<- read.csv(e1_fileName) %>%
+  mutate(Subject=factor(id)) %>%
+  select(-(id)) %>%
+  left_join(demographics) %>%
+  inner_join(demoUnique_PC) %>%
+  mutate(error = 1-correct) %>%
+  filter(trial <= 10) %>% # only look at practice trials
+  mutate(Item = factor(imagePair), Subject=factor(Subject), Congruency = factor(condition), AgeGroup = factor(AgeGroup), FamVersion = factor(FamVersion)) 
+
+```
+
+### Compute descriptives by age, condition, and their combination
+```{r} 
+### Error descriptives for paragraph below
+ErrorData_E1_Summary<- ErrorData_E1 %>%
+  group_by(Subject) %>%
+  summarize(meanSubError = mean(error)) %>%
+  summarize(meanError = mean(meanSubError)*100)
+
+ErrorData_E1_SummarybyAge<- ErrorData_E1 %>%
+  group_by(Subject,AgeGroup) %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(AgeGroup)  %>%
+  summarize(meanError = mean(meanSubError)*100)
+
+ErrorData_E1_SummarybyCond<- ErrorData_E1 %>%
+  group_by(Subject,Congruency) %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(Congruency)  %>%
+  summarize(meanError = mean(meanSubError)*100, stdError = sd(meanSubError)*100)
+
+ErrorData_E1_SummarybyCondbyAge<- ErrorData_E1 %>%
+  group_by(Subject,Congruency,AgeGroup) %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(AgeGroup,Congruency)  %>%
+  summarize(meanError = mean(meanSubError)*100, stdError = sd(meanSubError)*100)
+
+```
+
+### Check familiarization version didn't make a difference
+```{r}
+## Basic ANOVA
+aov.errors.famversion = ezANOVA(data = ErrorData_E1, dv=.(error), wid=.(Subject), within=.(Congruency), between=.(FamVersion), type=3)
+print(aov.errors.famversion)
+
+## Descriptive stats by familarization condition
+ErrorData_E1_byFamCondition<- ErrorData_E1 %>%
+  group_by(Subject,Congruency,FamVersion) %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(FamVersion)  %>%
+  summarize(meanError = mean(meanSubError)*100, stdError = sd(meanSubError)*100)
+
+```
+
+  Children in these two familiarization versions did not perform more or less accurately on test trials (no main effect of familiarization version on error rates; F(1,74) = `r round(aov.errors.famversion$ANOVA$F[1],2)`, p = `r round(aov.errors.famversion$ANOVA$p[1],2)`) and or on congruent versus incongruent displays (no interaction of familiarization version with trial type on error rates; F(1,74) = `r round(aov.errors.famversion$ANOVA$F[3],2)`, p= `r round(aov.errors.famversion$ANOVA$p[3],2)`).
+
+### How many errors did children make during practice trials?
+```{r}
+ErrorData_E1_Practice_Summary <- ErrorData_E1_Practice %>%
+  group_by(Subject,AgeGroup) %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(AgeGroup) %>%
+  summarize(meanError = mean(meanSubError), sdError = sd(meanSubError))
+```  
+(Foonote 5): This cutoff of 10 trials was chosen after piloting the task in a separate group of children and noticing that some children were still responding very slowly during the first few trials. However, error rates were still relatively low during these first 10 practice trials (3-year-olds, average M=`r round(ErrorData_E1_Practice_Summary$meanError[1],3)*100`%, SD = `r round(ErrorData_E1_Practice_Summary$sdError[1],3)*100`%; 4-year-olds, average M=`r round(ErrorData_E1_Practice_Summary$meanError[2],3)*100`%, SD = `r round(ErrorData_E1_Practice_Summary$sdError[2],3)*100`)%
+
+### Main inferential statistics on error rates
+```{r}
+## Basic ANOVA
+aov.errors = ezANOVA(data = ErrorData_E1, dv=.(error), wid=.(Subject), within=.(Congruency), between=.(AgeGroup), type=3)
+print(aov.errors)
+
+#Random slopes and intercepts were perfectly anticorrelated for items
+Errors_glmer_E1 = glmer(error ~ Congruency + (1 | Subject) + (1|Item), data=ErrorData_E1, family="binomial")
+Errors_glmer_E1_out=data.frame(round(summary(Errors_glmer_E1)$coef,3))
+kable(Errors_glmer_E1_out)
+
+```
+
+### Post-hoc tests by age group on error rates
+```{r}
+## Break out by age group for t-tests
+ErrorData_E1_CondbyAge<- ErrorData_E1 %>%
+  group_by(Subject,Congruency,AgeGroup) %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(Congruency,AgeGroup) 
+
+# 3 year olds
+cong_3years=ErrorData_E1_CondbyAge$meanSubError[ErrorData_E1_CondbyAge$Congruency==1 & ErrorData_E1_CondbyAge$AgeGroup==1]
+incong_3years=ErrorData_E1_CondbyAge$meanSubError[ErrorData_E1_CondbyAge$Congruency==2 & ErrorData_E1_CondbyAge$AgeGroup==1]
+# 4 year olds
+cong_4years=ErrorData_E1_CondbyAge$meanSubError[ErrorData_E1_CondbyAge$Congruency==1 & ErrorData_E1_CondbyAge$AgeGroup==2]
+incong_4years=ErrorData_E1_CondbyAge$meanSubError[ErrorData_E1_CondbyAge$Congruency==2 & ErrorData_E1_CondbyAge$AgeGroup==2]
+
+error_3YearOlds=t.test(incong_3years,cong_3years,alternative = "greater", paired=TRUE, var.equal = TRUE)
+error_4YearOlds=t.test(incong_4years,cong_4years,alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+# check if these results also hold when 2-sample t-test (for R1)
+error_3YearOlds_2samp=t.test(incong_3years,cong_3years, paired=TRUE, var.equal = TRUE)
+error_4YearOlds_2samp=t.test(incong_4years,cong_4years, paired=TRUE, var.equal = TRUE)
+
+# compute avg and sd of error difference
+avg_stroop_error_3yr=mean(incong_3years-cong_3years)
+sd_stroop_error_3yr=sd(incong_3years-cong_3years)
+
+avg_stroop_error_4yr=mean(incong_4years-cong_4years)
+sd_stroop_error_4yr=sd(incong_4years-cong_4years)
+
+```
+
+### Error results paragraph (E1)
+Children made relatively few errors (M = `r round(ErrorData_E1_Summary$meanError,2)`%) suggesting they understood the task instructions, though 3-year-olds made more errors than 4-year-olds (main effect of age: 3-year-olds: M = `r round(ErrorData_E1_SummarybyAge$meanError,2)[1]`%, 4-year-olds: M = `r round(ErrorData_E1_SummarybyAge$meanError,2)[2]`%, F(1,74) =  `r round(aov.errors$ANOVA$F,2)[1]`,  p = `r round(aov.errors$ANOVA$p,2)[1]`, ηG2 = `r round(aov.errors$ANOVA$ges,2)[1]`). In addition, children showed evidence for the Size-Stroop effect in their errors; they made more errors on incongruent than congruent displays (main effect of trial type: 
+congruent M = `r round(ErrorData_E1_SummarybyCond$meanError,2)[1]` (SD = `r round(ErrorData_E1_SummarybyCond$stdError,2)[1]`%), 
+incongruent M = `r round(ErrorData_E1_SummarybyCond$meanError,2)[2]` (SD = `r round(ErrorData_E1_SummarybyCond$stdError,2)[2]`%), 
+F(1,74) = `r round(aov.errors$ANOVA$F,2)[2]`, p = `r round(aov.errors$ANOVA$p,2)[2]`, ηG2 = `r round(aov.errors$ANOVA$ges,2)[2]`). The Size-Stroop effect was apparent throughout this age range; there was no interaction between age group and trial type (F(1,74) = `r round(aov.errors$ANOVA$F,2)[3]`, p = `r round(aov.errors$ANOVA$p,2)[3]`, ηG2 < `r round(aov.errors$ANOVA$ges,2)[3]`).  
+
+Finally, planned ad-hoc comparisons confirmed that the Size-Stroop effect was observed at each age: 3-year-olds: congruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[1],2)`%, incongruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[2],2)`%, t(44) = `r round(error_3YearOlds$statistic,2)`, p = `r round(error_3YearOlds$p.value,3)`.
+
+4-year olds: congruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[3],2)`%, incongruent M = `r round(ErrorData_E1_SummarybyCondbyAge$meanError[4],2)`%, t(30) = `r round(error_4YearOlds$statistic,2)`, p = `r round(error_4YearOlds$p.value,3)` see Figure 3A.  Our GLMM model confirmed these analyses, finding that this effect generalized across individual subjects and items (B = `r Errors_glmer_E1_out$Estimate[2]`, SE = `r Errors_glmer_E1_out$Std..Error[2]`, Z =  `r Errors_glmer_E1_out$z.value[2]`, p < .001).
+
+....Indeed the relative difference in error rates across conditions was relatively similar between 3-year-olds and 4-year-olds (3-year-olds, Mincong – cong = `r round(avg_stroop_error_3yr,3)*100`%, SD = `r round(sd_stroop_error_3yr,3)*100`%; 4-year-olds, Mincong – cong = `r round(avg_stroop_error_4yr,3)*100`%, SD = `r round(sd_stroop_error_4yr,3)*100`%, see all individual data in Supplemental Figures 2 and 3).
+
+
+### Do error rates differ across the experiment? Seems relatively consistent
+```{r}
+## Main analyses - error rates across quartiles after practice trials
+ErrorRatesbyQuartiles<- ErrorData_E1 %>%
+  group_by(Subject,AgeGroup) %>%
+  mutate(quartile = ntile(trial, 4)) %>% ## create quartiles for each subject by trial
+  group_by(Subject,quartile,AgeGroup)  %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(AgeGroup,quartile) %>%
+  summarize(meanError = mean(meanSubError))
+
+## Break down by congruency
+ErrorRatesbyQuartilesbyCond<- ErrorData_E1 %>%
+  group_by(Subject,AgeGroup) %>%
+  mutate(quartile = ntile(trial, 4)) %>% ## create quartiles for each subject by trial
+  group_by(Subject,quartile,AgeGroup, Congruency)  %>%
+  summarize(meanSubError = mean(error)) %>%
+  group_by(quartile,AgeGroup, Congruency)  %>%
+  multi_boot_standard(col = "meanSubError")
+
+## Make a descriptive plot
+levels(ErrorRatesbyQuartilesbyCond$AgeGroup) <- c("3-Year-Olds","4-Year-Olds")
+ggplot(data = ErrorRatesbyQuartilesbyCond, aes(quartile, mean)) +
+  theme_few() + 
+  geom_pointrange(aes(ymin=ci_lower, ymax = ci_upper, color=Congruency)) +
+  facet_grid(~AgeGroup) +
+  labs(y = "Mean error rate", x = "Quartile")
+
+## Extra analyses -  do this by trial bin as well
+ErrorRatesbyTrialBin<- ErrorData_E1_AllTrials %>%
+  group_by(Subject,AgeGroup) %>%
+  mutate(trial_bin = floor(trial/10)) %>%
+  group_by(Subject,trial_bin,AgeGroup, Congruency)  %>%
+  summarize(meanSubError = mean(error)) 
+
+countSubs <- ErrorRatesbyTrialBin %>%
+  group_by(AgeGroup,trial_bin,Congruency) %>%
+  summarize(countSubs = n()) 
+
+ErrorRatesbyTrialBin_toPlot <- ErrorRatesbyTrialBin %>%
+  group_by(AgeGroup,trial_bin,Congruency) %>%
+  multi_boot_standard(col = "meanSubError") %>%
+  left_join(countSubs) 
+
+## Plot it
+levels(ErrorRatesbyTrialBin_toPlot$AgeGroup) <- c("3-Year-Olds","4-Year-Olds")
+levels(ErrorRatesbyTrialBin_toPlot$Congruency) <- c("Congruent","Incongruent")
+ggplot(data = ErrorRatesbyTrialBin_toPlot, aes(trial_bin, mean)) +
+  theme_few() + 
+  geom_point(aes(size=countSubs, color=Congruency)) +
+  geom_pointrange(aes(ymin=ci_lower, ymax = ci_upper, color=Congruency)) +
+  scale_color_manual(values = c("#3C86A0", "#821919"))+
+  facet_grid(~AgeGroup) +
+  labs(y = "Mean error rate", x = "Trial bin") +
+  ylim(c(0,.5))
+  
+```
+
+We also found that children’s overall error rates were consistent in both age groups across the session, suggesting that they did not initially know the instructions and then forget them over time (3-year-olds, M=`r round(ErrorRatesbyQuartiles$meanError[1],3)*100`%, M=`r round(ErrorRatesbyQuartiles$meanError[2],3)*100`%,M=`r round( ErrorRatesbyQuartiles$meanError[3],3)*100`%,M=`r round(ErrorRatesbyQuartiles$meanError[4],3)*100`%; 4-year-olds,M=`r round(ErrorRatesbyQuartiles$meanError[5],3)*100`%, M=`r round(ErrorRatesbyQuartiles$meanError[6],3)*100`%,M=`r round( ErrorRatesbyQuartiles$meanError[7],3)*100`%,M=`r round(ErrorRatesbyQuartiles$meanError[8],3)*100`%).
+
+
+## Reaction time analyses
+### Read in data
+```{r}
+# Get list of the subjects that passed inclusion threshold
+demoUnique_RT <- includedSubs_RT %>%
+  group_by(Subject) %>%
+  select(-c(Congruency, countTrials))  %>%
+  distinct(Subject,AgeGroup)
+
+RTData_E1 <- read.csv(e1_fileName) %>%
+  mutate(Subject =factor(id)) %>%
+  select(-(id)) %>%
+  inner_join(demoUnique_RT) %>%
+  left_join(demographics) %>%
+  filter(RT<4000, correct == 1, trial>10) %>%
+  mutate(logRT = log(RT)) %>%
+  mutate(Item = factor(imagePair), Congruency = factor(condition), AgeGroup = factor(AgeGroup))
+
+RTbyCond_All <- RTData_E1 %>%
+  group_by(Congruency) %>%
+  summarize(meanRT = mean(RT), stdRT=sd(RT))
+  
+```
+
+### Inferential statistics on reaction times
+```{r}
+# run age x congruency anova
+aov.rt = ezANOVA(data = RTData_E1, dv=.(RT), wid=.(Subject), within=.(Congruency), between=.(AgeGroup), type=3)
+print(aov.rt)
+
+# Linear mixed effect models -- confirm with LME4 on logRT
+RT_lmer_E1_full = lmer(logRT ~ Congruency*AgeGroup + (1+ Congruency | Subject) + (1 + Congruency|Item), data=RTData_E1)
+# Output table
+kable(summary(RT_lmer_E1_full)$coef)
+
+lmerFullOut=data.frame(round(summary(RT_lmer_E1_full)$coef,3))
+
+```
+
+Reaction Time Results. When we considered both 3- and 4-year-olds together, we found that, overall, children did not take longer to make visual size judgments on incongruent versus congruent displays (no main effect of trial type: congruent M= `r round(RTbyCond_All$meanRT,0)[1]`, incongruent M = `r round(RTbyCond_All$meanRT,0)[2]`, F(1,70) =`r round(aov.rt$ANOVA$F,2)[2]`, p = `r round(aov.rt$ANOVA$p,2)[2]`, ηG2 =  `r round(aov.rt$ANOVA$ges[2],2)`).  
+
+
+
+### Post-hoc RT analyses by age group
+```{r}
+## Average by subject first
+RTbyCond_3 <- RTData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanSubRT = mean(RT))
+
+RTbyCond_4 <- RTData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanSubRT = mean(RT))
+
+## Then by condition for descriptives
+RTbyCond_4_Avg <- RTbyCond_4 %>% 
+  group_by(Congruency) %>% ## already grouped by subject here
+  summarize (meanRT = mean(meanSubRT), sdRT = sd(meanSubRT))
+
+RTbyCond_3_Avg <- RTbyCond_3 %>%
+  group_by(Congruency) %>% ## already grouped by subject here
+  summarize (meanRT = mean(meanSubRT), sdRT = sd(meanSubRT))
+```
+
+```{r}
+## Post-hoc t-tests
+# 3-year-olds
+stroopRT_3Years=t.test(RTbyCond_3$meanSubRT[RTbyCond_3$Congruency==2], RTbyCond_3$meanSubRT[RTbyCond_3$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+# 4-year-olds
+stroopRT_4Years=t.test(RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==2], RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+## 2-sample t-tests
+# 3-year-olds
+stroopRT_3Years_2samp=t.test(RTbyCond_3$meanSubRT[RTbyCond_3$Congruency==2], RTbyCond_3$meanSubRT[RTbyCond_3$Congruency==1], paired=TRUE, var.equal = TRUE)
+
+# 4-year-olds
+stroopRT_4Years_2samp=t.test(RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==2], RTbyCond_4$meanSubRT[RTbyCond_4$Congruency==1], paired=TRUE, var.equal = TRUE)
+
+stroopRT_4Years_cohensD <- RTbyCond_4 %>%
+  group_by(Subject) %>%
+  summarize(effectBySub = meanSubRT[Congruency==2] - meanSubRT[Congruency==1] ) %>%
+  summarize(meanDiff = mean(effectBySub), stdDiff=sd(effectBySub)) %>%
+  mutate(cohensD = meanDiff/stdDiff)
+
+stroopRT_3Years_cohensD <- RTbyCond_3 %>%
+  group_by(Subject) %>%
+  summarize(effectBySub = meanSubRT[Congruency==2] - meanSubRT[Congruency==1] ) %>%
+  summarize(meanDiff = mean(effectBySub), stdDiff=sd(effectBySub)) %>%
+  mutate(cohensD = meanDiff/stdDiff)
+
+### Mixed effect models on RT for 4-year-olds
+RTbyCond_4_Raw <- RTData_E1 %>%
+  filter(AgeGroup==2) 
+
+RT_lmer_E1_4YearOlds = lmer(logRT ~ Congruency + (1 + Congruency| Subject) + (1 + Congruency|Item), data=RTbyCond_4_Raw)
+
+kable(summary(RT_lmer_E1_4YearOlds)$coef)
+lmerOut=summary(RT_lmer_E1_4YearOlds)$coef
+lmer4YrsOut=data.frame(round(summary(RT_lmer_E1_4YearOlds)$coef,3))
+
+```
+
+### Reaction time results paragraph (E1)
+However, we planned to examine results for 3- and 4-year-olds separately, as we anticipated that 3-year-olds might not be able to perform the task as well as 4-year-olds.  These planned ad-hoc tests revealed that 4-year-olds showed the Size-Stroop effect in their RTs (congruent M = `r round(RTbyCond_4_Avg$meanRT,0)[1]`, SD = `r round(RTbyCond_4_Avg$sdRT,0)[1]`, incongruent M = `r round(RTbyCond_4_Avg$meanRT,0)[2]`, SD = `r round(RTbyCond_4_Avg$sdRT,0)[2]`, t(`r stroopRT_4Years$parameter[1]`) = `r round(stroopRT_4Years$statistic,2)`, p = `r round(stroopRT_4Years$p.value,2)`, Cohen’s d = `r round(stroopRT_4Years_cohensD$cohensD,2)`), while the 3-year-olds did not (congruent M = `r round(RTbyCond_3_Avg$meanRT,0)[1]`, SD = `r round(RTbyCond_3_Avg$sdRT,0)[1]`, incongruent M = `r round(RTbyCond_3_Avg$meanRT,0)[2]`, SD = `r round(RTbyCond_3_Avg$sdRT,0)[2]`, t(`r stroopRT_3Years$parameter[1]`) = `r round(stroopRT_3Years$statistic,2)`, p = `r round(stroopRT_3Years$p.value,3)`,  Cohen's d = `r round(stroopRT_3Years_cohensD$cohensD,2)`, Figure 3B).  
+
+This same pattern of results was evident in the linear mixed effect model: that is, when combining across all children there was no congruency effect in reaction time (B = `r round(lmerFullOut$Estimate[2],3)`, SE = `r round(lmerFullOut$Std..Error[2],3)`, t = `r round(lmerFullOut$t.value[2],3)`, p = `r round(lmerFullOut$Pr...t..[2],3)`) and a trend towards an interaction between congruency and age (B = `r round(lmerFullOut$Estimate[3],3)`, SE = `r round(lmerFullOut$Std..Error[3],3)`, t = `r round(lmerFullOut$t.value[3],3)`, p = `r round(lmerFullOut$Pr...t..[3],3)`); however, congruency was significant when 4-year-olds were considered separately (congruency, B = `r lmer4YrsOut$Estimate[2]`, SE = `r lmer4YrsOut$Std..Error[2]`, t = `r lmer4YrsOut$t.value[2]`, p = `r lmer4YrsOut$Pr...t..[2]`)
+
+### What predicts whether a child will show the Size-Stroop effect?
+```{r}
+
+overallRT <- RTData_E1 %>%
+  group_by(Subject) %>%
+  summarize (meanRT = mean(RT), sdRT = sd(RT), age=Age[1])
+
+StroopbySub <- RTData_E1 %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanRT = mean(RT)) %>%
+  left_join(demographics) %>%
+  group_by(Subject) %>%
+  summarize(StroopRT = meanRT[Congruency==2] - meanRT[Congruency==1], Age=Age[1]) %>%
+  mutate(AbsStroopRT = abs(StroopRT)) %>%
+  left_join(overallRT) ## join overall RT data
+
+StroopErrorbySub <- ErrorData_E1 %>%
+  group_by(Subject, Congruency) %>%
+  summarize (meanError = mean(error)) %>%
+  left_join(demographics) %>%
+  group_by(Subject) %>%
+  summarize(StroopError = meanError[Congruency==2] - meanError[Congruency==1], Age=Age[1]) 
+
+# Age vs. Stroop RT
+AgevStroop=cor.test(StroopbySub$Age, StroopbySub$StroopRT)
+
+# Age vs. AbsStroop ER
+AgevAbsStroop=cor.test(StroopbySub$Age, StroopbySub$AbsStroopRT)
+
+# Age vs. Stroop Error
+AgevStroopError=cor.test(StroopErrorbySub$Age, StroopErrorbySub$StroopError)
+
+# Mean RT vs. Age
+# RTvAge=cor.test(overallRT$meanRT, StroopbySub$Age)
+
+# Mean RT vs. Stroop
+RTvStroop=cor.test(overallRT$meanRT, StroopbySub$StroopRT)
+
+# Mean RT vs. Abs(StroopRT)
+RTvAbsStroop=cor.test(overallRT$meanRT, StroopbySub$AbsStroopRT)
+
+## use cocor package to compare correlations 
+StroopbySub_DF=as.data.frame(StroopbySub) # convert to dataframe for package functions.
+out = cocor(~StroopRT + meanRT | AbsStroopRT + meanRT, StroopbySub_DF)
+## Report williams' t (1959) though all tests are significant.
+
+toPlot <- StroopbySub %>%
+  left_join(overallRT)
+
+base_size_sup3 = 12 # for rendering in-line
+# base_size_sup3 = 18  # for making figure
+
+# make plots to visualize these
+g1=ggplot(toPlot, aes(x = meanRT, y = StroopRT, col=age)) + 
+  geom_point()  +
+  geom_smooth(method="lm", color="navy") +
+  theme_few(base_size = base_size_sup3) +
+  scale_color_viridis(option="A") +
+  theme(legend.position = "none") +
+  labs(x = "Average RT (ms)", y ="Stroop RT (ms)")
+
+g2=ggplot(toPlot, aes(x = meanRT, y = AbsStroopRT, col=age)) + 
+  geom_point()  +
+  geom_smooth(method="lm", color="navy") +
+  theme_few(base_size = base_size_sup3) +
+  scale_color_viridis(option="A", name ="Age (months)") +
+  labs(x = "Average RT (ms)", y ="Absolute value of Stroop RT (ms)")
+
+SuppFigure2=ggarrange(g1,g2, nrow=1)
+ggsave("SuppFigure3-Correlations.tiff", width = 11.5, height = 5,unit =  "in", plot = SuppFigure2, path="./figures/", device = "tiff",dpi = 300)
+
+```
+
+### Exploratory correlations paragraph
+Age was only weakly correlated with the size of the Stroop effect for RTs (RTs: r = `r round(AgevStroop$estimate,2)`, p = `r round(AgevStroop$p.value,2)`) or errors (Error rates: r = `r round(AgevStroopError$estimate,2)`, p = `r round(AgevStroopError$p.value,2)`).  We then asked whether overall RT predicted the variability of the Size-Stroop effect for all children. We found that children who performed the task more slowly were more likely to show either a very positive or a very negative Size Stroop effect (age correlation with absolute valued Stroop effects, r = `r round(RTvAbsStroop$estimate,2)`, p = `r round(RTvAbsStroop$p.value,2)`); in other words, children whose reaction times were longer tended to have more variance in their RTs, leading to noisier estimates of the Size-Stroop effect.
+
+Footnote: Age was not positively correlated with absolute valued Stroop RT effects, r = `r round(AgevAbsStroop$estimate,2)`, p = `r round(AgevAbsStroop$p.value,2)`).
+
+
+# Experiment 2: Replication in fast four-year-olds
+## Load in data, counting of trials for demographics
+```{r}
+e2_fileName="data/Experiment2_All.csv" # 
+demographics_e2 <- read.csv("demographics/Experiment2.csv") 
+
+# for all subjects, count # of trials after practice
+errorSubs <- read.csv(e2_fileName) %>%
+  mutate(Subject = factor(id), Congruency = factor(condition))  %>%
+  filter(trial>10)  %>% 
+  group_by(Subject) %>%
+  summarize(countTrials = length(RT)) %>%
+  summarize(avgTrials = mean(countTrials), minTrials=min(countTrials), maxTrials=max(countTrials))
+
+# for all subjects, count # of slow trials
+slowPercent <- read.csv(e2_fileName) %>%
+  mutate(Subject = factor(id))  %>%
+  filter(trial>10, correct ==1 )  %>% 
+  group_by(Subject) %>%
+  summarize(countTrials = length(RT), slowTrials = sum(RT>4000)) %>%
+  group_by(Subject) %>%
+  summarize(percentSlowTrials = slowTrials / countTrials)
+
+wrongPercent <- read.csv(e2_fileName) %>%
+  mutate(Subject = factor(id))  %>%
+  filter(trial>10)  %>% 
+  group_by(Subject) %>%
+  summarize(countTrials = length(correct), numErrors = sum(correct==0)) %>%
+  group_by(Subject) %>%
+  summarize(percentErrors= numErrors / countTrials)
+
+```
+
+### Descriptives paragraph
+In Experiment 2, children were on average `r round(mean(demographics_e2$Age..Mo.),2)` months of age (SD = `r round(sd(demographics_e2$Age..Mo.),2)`) and there were `r sum(demographics_e2$M.F=="M")` males.
+
+For error analysis, we analyzed error rates in all 33 children who participated. These children completed an average of `r round(errorSubs$avgTrials[1],2)` trials (range=`r errorSubs$minTrials[1]`  to `r errorSubs$maxTrials[1]`) out of a possible 70. For reaction time analyses, we first applied the same exclusion criteria as in Experiment 1. We excluded trials where children responded incorrectly (that is, chose the visually bigger image; M = `r round(mean(wrongPercent$percentErrors)*100,2)`% of all trials) or took longer than 4 seconds to respond (M = `r round(mean(slowPercent$percentSlowTrials)*100,2)`% of correct trials).  No children were excluded on the basis of not having 5 or more test trials with correct responses made in less than 4 seconds.  
+
+## Error rates analyses
+```{r}
+## Wrangle for t-test
+ErrorsbyCond <- read.csv(e2_fileName) %>%
+  mutate(Subject =factor(id)) %>%
+  select(-(id)) %>%
+  mutate(Item = factor(imagePair), Congruency = factor(condition)) %>%
+  filter(trial>10) %>% # exclude practice trials
+  group_by(Congruency,Subject) %>%
+  summarize(subErrors = 1-mean(correct)) %>%
+  group_by(Congruency)
+
+ErrorsbyCond_E2 <- ErrorsbyCond
+
+ErrorsbyCond_Summary <-ErrorsbyCond %>%
+  group_by(Congruency) %>%
+  summarize(meanErrors = mean(subErrors)*100, sdErrors = sd(subErrors)*100)
+```
+
+### Inferential statistics on error rates
+```{r}
+
+###### simple t-test
+ErrorByCondTest=t.test(ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==2], ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+## check if holds with 2-sample
+ErrorByCondTest_2samp=t.test(ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==2], ErrorsbyCond$subErrors[ErrorsbyCond$Congruency==1], paired=TRUE, var.equal = TRUE)
+
+allData_E2_errors_raw <- read.csv(e2_fileName) %>%
+  mutate(Subject =factor(id)) %>%
+  select(-(id)) %>%
+  filter(trial > 10) %>% # exclude practice trials
+  mutate(Item = factor(imagePair), Congruency = factor(condition)) %>%
+  mutate(error = 1-(correct))
+
+## Exploratory analyses -- confirm with mixed effect glmer
+# Convergence error, eliminate random slopes on subs
+# Errors_glmer_E2 = glmer(error ~ Congruency + (Congruency | Subject) + (Congruency|Item), data=allData_E2_errors_raw, family="binomial")
+
+Errors_glmer_E2 = glmer(error ~ Congruency + (1 | Subject) + (Congruency|Item), data=allData_E2_errors_raw, family="binomial")
+
+Errors_glmer_E2_out=data.frame(round(summary(Errors_glmer_E2)$coef,3))
+kable(Errors_glmer_E2_out)
+```
+### Error results paragraph
+As in Experiment 1, children made more errors on incongruent displays (congruent M = `r round(ErrorsbyCond_Summary$meanErrors[1],2)`%, incongruent M = `r round(ErrorsbyCond_Summary$meanErrors[2],2)`%, t(32) = `r round(ErrorByCondTest$statistic,2)`, p = `r round(ErrorByCondTest$p.value,3)`, even though they made fewer errors overall when compared to 4-year-olds in Experiment 1 (see Figure 3A). This effect was confirmed with the mixed effect model (congruency, B = `r Errors_glmer_E2_out$Estimate[2]`, SE = `r Errors_glmer_E2_out$Std..Error[2]`, t = `r Errors_glmer_E2_out$z.value[2]`, p = `r Errors_glmer_E2_out$Pr...z..[2]`)
+
+
+## Reaction time analyses
+### Load in data and preprocess
+```{r}
+allData_E2<-read.csv(e2_fileName) %>%
+  mutate(Subject =factor(id), Congruency = factor(condition), Item = factor(imagePair))  %>%
+  select(-(id)) 
+  
+## Load in data and see how many correct fast RT trials we have
+checkTrials_RT <- allData_E2 %>%
+  filter(RT<4000, correct == 1, trial>10)  %>% # speeded, correct trials after practice
+  group_by(Subject, Congruency)  %>%
+  summarize(countTrials = length(RT))  # how many trails per condition
+
+## Load in data and see how overall trials were have
+checkTrials_All <- allData_E2 %>%
+  filter(trial>10)  %>% #trials after practice
+  group_by(Subject, Congruency)  %>%
+  summarize(countTrials = length(RT))  # how many trails per condition
+
+# nothing to exclude  on the basis of trials
+sum(checkTrials_RT$countTrials<5)
+
+## compute avg RT and z scores
+allKids <-allData_E2 %>%
+  group_by(Subject)  %>%
+  summarize(avgRT = mean (RT)) %>%
+  mutate(avgRT_zScore = scale(avgRT, center = TRUE, scale = TRUE)) 
+  
+## filter out
+fastKids <-allKids %>%
+  filter(avgRT_zScore < 2)
+
+## list of fast kids subject ids
+fastKidsList <- fastKids %>%
+  group_by(Subject) %>%
+  select(-c(avgRT, avgRT_zScore))  %>%
+  distinct(Subject)
+
+## exclude from full data set
+fastKids_RT <- allData_E2 %>%
+  inner_join(fastKidsList) %>%
+  filter(RT<4000, correct == 1, trial>10) %>%  # speeded, correct trials after practice
+  mutate(logRT = log(RT))
+
+## count number of trials we got
+fastKidsTrials <-fastKids_RT  %>%
+  group_by(Subject) %>%
+  summarize(countTrials =length(RT))  %>%
+  summarize(meanTrials = mean(countTrials))
+
+### also keep these kids in and see what happens in exploratory analyses
+allKids_RT <- allData_E2 %>%
+  filter(RT<4000, correct == 1, trial>10) %>%  # speeded, correct trials after practice
+  mutate(logRT = log(RT))
+
+```
+### Descriptives paragraph
+As planned, we then excluded children whose average RTs (across both conditions) were slower than 2 standard deviations from the average group RT (only 2 participants; mean RTs=`r round(allKids$avgRT[allKids$avgRT_zScore>2][1],0)`,`r round(allKids$avgRT[allKids$avgRT_zScore>2][2],0)`, z-scores=`r round(allKids$avgRT_zScore[allKids$avgRT_zScore>2],2)`).   After applying these inclusion criteria, we analyzed the RTs of 31 children (M = 53.39 months, SD = 3.21 months, 13 males), who completed an average of `r round(fastKidsTrials$meanTrials,2)` trials. 
+
+## Reaction time analyses
+```{r}
+## Average by congruency
+RTbyCond <- fastKids_RT %>%  
+  group_by(Congruency,Subject) %>%
+  summarize(meanRTSub = mean(RT)) 
+
+RTbyCond_E2<-RTbyCond ## for use in E3
+
+RTbyCond_Summary <- RTbyCond %>%  
+  group_by(Congruency) %>%
+  summarize(meanRT = mean(meanRTSub)) 
+```
+### Inferential statistics
+```{r}
+
+###### simple t-test
+RTByCond_Test=t.test(RTbyCond$meanRTSub[RTbyCond$Congruency==2], RTbyCond$meanRTSub[RTbyCond$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+## check if holds with 2-sample
+RTByCond_Test_2samp=t.test(RTbyCond$meanRTSub[RTbyCond$Congruency==2], RTbyCond$meanRTSub[RTbyCond$Congruency==1], paired=TRUE, var.equal = TRUE)
+
+# cohen's d
+effectBySub=RTbyCond$meanRTSub[RTbyCond$Congruency==2]-RTbyCond$meanRTSub[RTbyCond$Congruency==1];
+meanDiff=mean(effectBySub)
+stdDiff=sd(effectBySub)
+cohensd=meanDiff/stdDiff
+
+# lmer model
+RT_lmer_E2_Fast = lmer(logRT ~ Congruency + (1+ Congruency|Subject) + (1 + Congruency|Item), data=fastKids_RT)
+round(summary(RT_lmer_E2_Fast)$coef,2)
+
+RT_lmer_E2_Fast_Out = data.frame(round(summary(RT_lmer_E2_Fast)$coef,2))
+```
+ 
+### Reaction time results paragraph
+ As in Experiment 1, four-year-olds took longer to make visual size judgments on incongruent trials (congruent M =`r round(RTbyCond_Summary$meanRT[1],0)`, incongruent M =`r round(RTbyCond_Summary$meanRT[2],0)`, t(30) = `r round(RTByCond_Test$statistic,2)`, p = `r round(RTByCond_Test$p.value,2)`, Cohen’s d=`r round(cohensd,2)`, Figure 3B); a linear mixed-effect model on logRT revealed the same pattern of results (B =`r RT_lmer_E2_Fast_Out$Estimate[2]`, SE = `r RT_lmer_E2_Fast_Out$Std..Error[2]`, t = `r RT_lmer_E2_Fast_Out$t.value[2]`, p = `r RT_lmer_E2_Fast_Out$Pr...t..[2]`). Thus, these data replicate the pattern of effects seen in Experiment 1; four-year-olds exhibit a Size-Stroop effect in both their errors and reaction times. 
+
+### What happens when we include slow kids? Footnote 8.
+```{r}
+###### simple t-test
+allKids_RTbyCond <- allKids_RT %>%
+  group_by(Congruency,Subject) %>%
+  summarize(mean = mean(RT)) 
+
+# t-test
+allKids_RTbyCond_Test=t.test(allKids_RTbyCond$mean[allKids_RTbyCond$Congruency==2], allKids_RTbyCond$mean[allKids_RTbyCond$Congruency==1], alternative = "greater", paired=TRUE, var.equal = TRUE)
+
+# Convergence errors with random slopes on items; omitted.
+RT_lmer_E2_All = lmer(logRT ~ Congruency + (1+ Congruency|Subject) + (1|Item), data=allKids_RT)
+kable(round(summary(RT_lmer_E2_All)$coef,2))
+RT_lmer_E2_All_Out = data.frame(round(summary(RT_lmer_E2_All)$coef,2))
+```
+
+As an exploratory analysis, we included the two children with slow overall RTs. We found that including these children did not change the pattern of effects in the linear mixed-effect model on log RTs (B =`r RT_lmer_E2_All_Out$Estimate[2]`, SE = `r RT_lmer_E2_All_Out$Std..Error[2]`, t = `r RT_lmer_E2_All_Out$t.value[2]`, p = `r RT_lmer_E2_All_Out$Pr...t..[2]`). but did the pattern of effects in a traditional paired t-test (t(32)= `r round(allKids_RTbyCond_Test$statistic,2)`, p = `r round(allKids_RTbyCond_Test$p.value,2)`).
+
+## Main plot with data from both experiments
+### Figure 3
+
+```{r}
+##Make some plots
+RTbyCond_3_Plot <- RTData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanRT = mean(RT)) %>%
+  group_by (Congruency) %>%
+  multi_boot_standard(col = "meanRT")
+
+RTbyCond_4_Plot <- RTData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanRT = mean(RT)) %>%
+  group_by (Congruency) %>%
+  multi_boot_standard(col = "meanRT")
+
+RTbyCond_E2_Plot <- fastKids_RT %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanRT = mean(RT)) %>%
+  group_by (Congruency) %>%
+  multi_boot_standard(col = "meanRT")
+
+#######
+ErrbyCond_3_Plot <- ErrorData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  %>%
+  group_by (Congruency) %>%
+  multi_boot_standard(col = "meanError")
+  
+ErrbyCond_4_Plot <- ErrorData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  %>%
+  group_by (Congruency) %>%
+  multi_boot_standard(col = "meanError")
+
+ErrbyCond_E2_Plot <- allData_E2_errors_raw %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  %>%
+  group_by (Congruency) %>%
+  multi_boot_standard(col = "meanError")
+
+###
+g1=ggplot(RTbyCond_3_Plot, aes(x = Congruency, y = mean, fill=Congruency)) + 
+  theme_few() +
+  geom_bar(stat = "identity", position= "dodge", alpha=.7) +
+  scale_fill_manual(values=c("#3C86A0", "#821919")) +
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), color=c("#3C86A0", "#821919")) +
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  scale_y_continuous(limits=c(1350,2100), oob = rescale_none) 
+
+g2=ggplot(RTbyCond_4_Plot, aes(x = Congruency, y = mean, fill=Congruency)) + 
+  theme_few() +
+  geom_bar(stat = "identity", position= "dodge", alpha=.7) +
+  scale_fill_manual(values=c("#3C86A0", "#821919")) +
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), color=c("#3C86A0", "#821919")) +
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  scale_y_continuous(limits=c(1350,2100), oob = rescale_none) 
+
+g3=ggplot(RTbyCond_E2_Plot, aes(x = Congruency, y = mean, fill=Congruency)) + 
+  theme_few() +
+  geom_bar(stat = "identity", position= "dodge", alpha=.7) +
+  scale_fill_manual(values=c("#3C86A0", "#821919")) +
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), color=c("#3C86A0", "#821919")) +
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  scale_y_continuous(limits=c(1350,2100), oob = rescale_none) 
+
+###
+g4=ggplot(ErrbyCond_3_Plot, aes(x = Congruency, y = mean, fill=Congruency)) + 
+  theme_few() +
+ geom_bar(stat = "identity", position= "dodge", alpha=.7) +
+  scale_fill_manual(values=c("#3C86A0", "#821919")) +
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), color=c("#3C86A0", "#821919")) +
+  labs(y = "Mean error (%)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  ylim(c(0, 25)) +
+  ggtitle("E1: 3-Year-Olds")
+
+g5=ggplot(ErrbyCond_4_Plot, aes(x = Congruency, y = mean, fill=Congruency)) + 
+  theme_few() +
+ geom_bar(stat = "identity", position= "dodge", alpha=.7) +
+  scale_fill_manual(values=c("#3C86A0", "#821919")) +
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), color=c("#3C86A0", "#821919")) +
+  labs(y = "Mean error (%)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  ylim(c(0, 25)) +
+  ggtitle("E1: 4-Year-Olds")
+
+g6=ggplot(ErrbyCond_E2_Plot, aes(x = Congruency, y = mean, fill=Congruency)) + 
+  theme_few() +
+ geom_bar(stat = "identity", position= "dodge", alpha=.7) +
+  scale_fill_manual(values=c("#3C86A0", "#821919")) +
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), color=c("#3C86A0", "#821919")) +
+  labs(y = "Mean error (%)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Congruent","Incongruent")) +
+  ylim(c(0, 25)) +
+  ggtitle("E2: Replication")
+
+compiledPlot=ggarrange(g4,g5,g6,g1,g2,g3, nrow=2) # errors first, then RT
+#compiledPlot=ggarrange(g1,g2,g3,g4,g5,g6, nrow=2)
+ggsave("Figure3-E1andE2.pdf", width = 10, height = 6,unit =  "in", plot = compiledPlot, path="./figures/", device = "tiff",dpi = 300)
+
+```
+
+### Supplemental Figure 2
+Plot raw data (errors, RT) for each subject in each age group / experiment
+```{r}
+RTbyCond_3_Vals <- RTData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanRT = mean(RT)) 
+
+RTbyCond_4_Vals <- RTData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanRT = mean(RT)) 
+
+RTbyCond_E2_Vals <- fastKids_RT %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanRT = mean(RT)) 
+
+#######
+ErrbyCond_3_Vals <- ErrorData_E1 %>%
+  filter(AgeGroup==1) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  
+  
+ErrbyCond_4_Vals <- ErrorData_E1 %>%
+  filter(AgeGroup==2) %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  
+
+ErrbyCond_E2_Vals <- allData_E2_errors_raw %>%
+  group_by (Congruency, Subject) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  
+###
+
+font_size_base = 13 ## for html
+# font_size_base = 20 ## for rendering in pdf
+
+g1=ggplot(RTbyCond_3_Vals, aes(x = Congruency, y = meanRT)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  theme_grey(base_size = font_size_base) +
+  scale_colour_manual(values=c("#3C86A0", "#821919")) +
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Cong","Incong")) +
+  scale_y_continuous(limits=c(500,3000), oob = rescale_none) 
+
+
+g2=ggplot(RTbyCond_4_Vals, aes(x = Congruency, y = meanRT)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  theme_grey(base_size = font_size_base) +
+  scale_colour_manual(values=c("#3C86A0", "#821919"))+
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Cong","Incong")) +
+  scale_y_continuous(limits=c(500,3000), oob = rescale_none) 
+
+
+g3=ggplot(RTbyCond_E2_Vals, aes(x = Congruency, y = meanRT)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  theme_grey(base_size = font_size_base) +
+  scale_colour_manual(values=c("#3C86A0", "#821919"))+
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Cong","Incong")) +
+  scale_y_continuous(limits=c(1350,2100), oob = rescale_none) +
+  labs(y = "Average RT (ms)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Cong","Incong")) +
+  scale_y_continuous(limits=c(500,3000), oob = rescale_none) 
+
+###
+g4=ggplot(ErrbyCond_3_Vals, aes(x = Congruency, y = meanError)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  theme_grey(base_size = font_size_base) +
+  scale_colour_manual(values=c("#3C86A0", "#821919"))+
+  labs(y = "Mean error (%)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Cong","Incong")) +
+  ylim(c(0, 100)) +
+  ggtitle("E1: 3-Year-Olds")
+
+g5=ggplot(ErrbyCond_4_Vals, aes(x = Congruency, y = meanError)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  theme_grey(base_size = font_size_base) +
+  scale_colour_manual(values=c("#3C86A0", "#821919")) +
+  labs(y = "Mean error (%)", x ="") +  
+  theme(legend.position="none") +
+  scale_x_discrete(labels=c("Cong","Incong")) +
+  ylim(c(0, 100)) +
+  ggtitle("E1: 4-Year-Olds")
+
+g6=ggplot(ErrbyCond_E2_Vals, aes(x = Congruency, y = meanError)) + 
+  geom_point(aes(colour=factor(Congruency))) +
+  geom_line(aes(group = Subject), color="grey")  +
+  theme_grey(base_size = font_size_base) +
+  scale_colour_manual(values=c("#3C86A0", "#821919")) +
+  labs(y = "Mean error (%)", x ="") +  
+  theme(legend.position="none",axis.ticks.x=element_blank()) +
+  scale_x_discrete(labels=c("Cong","Incong")) +
+  ylim(c(0, 100)) +
+  ggtitle("E2: Replication")
+
+
+compiledPlot=ggarrange(g4,g5,g6,g1,g2,g3, nrow=2) # errors first, then RT
+ggsave("SuppFigure2-IndivData.tiff", width = 11.5, height = 6,unit =  "in", plot = compiledPlot, path="./figures/", device = "tiff",dpi = 300)
+
+```
+
+
+# Item-Pair Analyses
+## Load and preprocess data
+Get Stroop item effects from E1/E2 and adults data; merge
+```{r}
+# get Stroop item effects for all 4-year-olds
+stroopItemEffects<-RTbyCond_4_Raw %>%
+  full_join(fastKids_RT) %>%
+  group_by(Item, Congruency) %>%
+  summarize(meanRT = mean(RT)) %>%
+  group_by(Item) %>%
+  summarize(stroopRT = meanRT[Congruency==2] - meanRT[Congruency==1])
+
+# get Stroop item effects for all errors
+stroopItemEffects_Errors <- ErrorData_E1 %>%
+  mutate(Subject = as.factor(Subject)) %>%
+  filter(AgeGroup==2) %>% ## only get 4-year-olds
+  full_join(allData_E2_errors_raw) %>%
+  group_by (Item, Congruency) %>%
+  summarize(meanError = mean(error)) %>%
+  mutate(meanError = meanError*100)  %>%
+  group_by(Item) %>%
+  summarize(stroopError = meanError[Congruency==2] - meanError[Congruency==1])
+
+## import adult data
+adultStroopItemEffects=read.csv("data/AdultItemEffects.csv") %>%
+  mutate(Item = as.factor(Item))
+
+## merge adult and children's data
+stroopItemEffects <- stroopItemEffects %>%
+  mutate(childStroopRT = stroopRT) %>%
+  full_join(adultStroopItemEffects) 
+```
+
+## Adult-Kid correlations
+```{r}
+# correlate item effects
+adultKidCorr=cor.test(stroopItemEffects$childStroopRT,stroopItemEffects$AdultStroopRT)
+
+# make plot
+ggplot(stroopItemEffects, aes(x = AdultStroopRT, y = childStroopRT)) + 
+  theme_few() +
+  geom_point()  +
+  geom_smooth(method="lm", color="navy") +
+  #draws x and y axis line
+  # theme(axis.line = element_line(color = 'black')) + 
+  labs(x="Adults' Stroop\nDisplay Effects (ms)", y="4-year-olds' Stroop\nDisplay Effects (ms)")+
+xlim(c(-25, 75)) 
+
+ggsave("Figure4-AdultKidCorr.tiff", width = 4, height = 4,unit =  "in", plot = last_plot(), path="./figures/", device = "tiff",dpi = 300)
+```
+
+We found that item effects for preschoolers and adults were highly correlated (r = `r round(adultKidCorr$estimate,2)`, p = `r round(adultKidCorr$p.value,2)`; Figure 4); the same pairs of objects generated stronger Stroop item effects in both adults and children. 
+
+## Load familiarity ratings and get basic descriptives
+```{r}
+## import fam data
+famRatings=read.csv("data/FamiliarityRatings_4YearOlds_CSV.csv") 
+  
+famRatingsSummary <- famRatings %>%
+  mutate(Subject = as.factor(Subject)) %>%
+  group_by(Subject) %>%
+  summarize(meanBasic = mean(CorrectBasic)*100, meanSize = mean(CorrectSize)*100, meanIncorrect = mean(RespondedButIncorrect)*100) 
+##
+noResponses = mean(100 - (famRatingsSummary$meanBasic+famRatingsSummary$meanIncorrect))
+```
+Overall, children identified the correct basic-level category of the objects `r round(mean(famRatingsSummary$meanBasic),1)`% of the time, gave an incorrect answer `r round(mean(famRatingsSummary$meanIncorrect),1)`% of the time, and did not give a response `r round(noResponses,2)`% of the time. Some items were always identified correctly (i.e., apple, 100% identification rate), while others were rarely identified correctly (i.e., perfume bottle, 33.3% identification rate). 
+
+### Assess reliability of familiarity ratings
+```{r}
+## function to divide data based on # of subjects and subject indexes
+divideData <- function(numSubs,subIndexes){
+  shuffled_subs=sample(numSubs,numSubs,replace=FALSE)
+  g1 = shuffled_subs[1:(numSubs/2)]
+  g2 = shuffled_subs[((numSubs/2)+1):numSubs]
+  s1 = subIndexes[g1]
+  s2 = subIndexes[g2]
+  return(data.frame(s1,s2))
+}
+
+numSubs = length(unique(famRatings$Subject))
+subIndexes = unique(famRatings$Subject)
+reliability_basic_level=numeric(length=100) # open up variable for 100 iterations
+reliability_size=numeric(length=100)
+
+## for each iteration
+for (i in c(1:100)){
+  ## get two random samples
+  random_subjects=divideData(numSubs,subIndexes)
+  
+  sample_1 <- famRatings %>%
+    filter(Subject %in% random_subjects$s1) %>%
+    group_by(ImageFileName, ImPairNumber) %>%
+    summarize(meanBasic = mean(CorrectBasic)) 
+  
+  sample_2 <- famRatings %>%
+    filter(Subject %in% random_subjects$s2) %>%
+    group_by(ImageFileName, ImPairNumber) %>%
+    summarize(meanBasic = mean(CorrectBasic)) 
+  
+  out=cor.test(sample_1$meanBasic,sample_2$meanBasic) ## correlate avg basic-level recognizability across two sets of 12
+  reliability_basic_level[i]=out$estimate # save it
+}
+
+for (i in c(1:100)){
+  ## get two random samples
+  random_subjects=divideData(numSubs,subIndexes)
+  
+  sample_1 <- famRatings %>%
+    filter(Subject %in% random_subjects$s1) %>%
+    group_by(ImageFileName, ImPairNumber) %>%
+    summarize(meanSize = mean(CorrectSize)) 
+  
+  sample_2 <- famRatings %>%
+    filter(Subject %in% random_subjects$s2) %>%
+    group_by(ImageFileName, ImPairNumber) %>%
+    summarize(meanSize = mean(CorrectSize)) 
+  
+  out=cor.test(sample_1$meanSize,sample_2$meanSize) ## correlate avg basic-level recognizability across two sets of 12
+  reliability_size[i]=out$estimate # save it
+}
+```
+
+To assess the reliability of the ratings, we re-computed how correctly each item was identified in 100 random split halves of our 24 participants and correlated the identification rates in each split half; on average, children were relatively reliable across this set of 40 items, with an average split-half correlation of r=`r round(mean(reliability_basic_level),2)`, SD=`r round(sd(reliability_basic_level),2)`.
+
+### Descriptive plots by each item
+```{r}
+famRatingsByItem <- famRatings %>%
+  mutate(ImPairNumber = as.factor(ImPairNumber)) %>%
+  group_by(ImageFileName, ImPairNumber) %>%
+  summarize(meanBasic = mean(CorrectBasic)*100, meanSize = mean(CorrectSize)*100, meanIncorrect = mean(RespondedButIncorrect)*100) 
+ 
+### Visualize basic-level ID by item
+ggplot(famRatingsByItem, aes(x = ImageFileName, y = meanBasic,col=ImPairNumber)) + 
+  geom_point()  +
+  theme_few() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(famRatingsByItem, aes(x = ImageFileName, y = meanSize, col=ImPairNumber)) + 
+  geom_point()  +
+  theme_few() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+##
+bbq <- famRatingsByItem %>%
+  filter(ImageFileName == "07_grill.png")
+
+die <- famRatingsByItem %>%
+  filter(ImageFileName == "07_dice.png")
+
+desk <- famRatingsByItem %>%
+  filter(ImageFileName == "01_desk.png")
+
+apple <- famRatingsByItem %>%
+  filter(ImageFileName == "01_apple.png")
+
+```
+
+### How well did children identify the basic-level identities?
+```{r}
+## Get imPairs (Stroop Displays) where basic-level ID is above 75%
+highBasic <- famRatings %>%
+  group_by(ImageFileName,ImPairNumber) %>%
+  summarize(meanBasic = mean(CorrectBasic)) %>%
+  mutate(highBasic = meanBasic > .75) %>%
+  group_by(ImPairNumber) %>%
+  summarize(countHighBasic = sum(highBasic)) 
+```
+
+### Separate items based on basic-level ID for further analysis
+```{r}
+## Output basic-level identification on these sets of "well" vs "poorly" identified displays
+highBasicDisplays=highBasic$ImPairNumber[highBasic$countHighBasic==2] ## 2 -- both items should be "true", i.e., greater than 75% threshold
+famRatingsHighBasic <- famRatingsByItem %>%
+  filter(is.element(ImPairNumber,highBasicDisplays))
+##
+lowBasicDisplays=highBasic$ImPairNumber[highBasic$countHighBasic<2]
+famRatingsLowBasic <- famRatingsByItem %>%
+  filter(is.element(ImPairNumber,lowBasicDisplays))
+
+## pairs where both items were poorly identified
+BothPoorlyIdentified=highBasic$ImPairNumber[highBasic$countHighBasic==0]
+```
+### Basic-level ID paragraph
+We then grouped together pairs where the basic-level identities of both the big and small objects were well identified (greater than 75%, `r length(highBasicDisplays)`/20 pairs, M = `r  round(mean(famRatingsHighBasic$meanBasic),2)` % across all 16 items) and pairs where one or more items were poorly identified (75% or less; `r length(lowBasicDisplays)`/20 pairs, M = `r  round(mean(famRatingsLowBasic$meanBasic),2)`% across all 24 items).  Most pairs contained only one item that was poorly identified (8/12 pairs) and four pairs contained two items that were both poorly identified. See Figure 5A for an example of a pair of objects where both items were poorly identified by 4-year-olds (the barbeque, `r round(bbq$meanBasic,2)`% identification rate, the die, `r round(die$meanBasic,2)`% identification rate) and a pair where both items were well identified by 4-year-olds (the desk, `r round(desk$meanBasic,2)`% identification rate; the apple, `r round(apple$meanBasic,2)`% identification rate). 
+
+
+## Are there difference in Size-Stroop effects according to identification?
+### ...for reaction times
+```{r}
+stroopItemEffectsHighID <- stroopItemEffects %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, highBasicDisplays))
+  
+stroopItemEffectsLowID <- stroopItemEffects %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, lowBasicDisplays))
+  
+### output  
+mean(stroopItemEffectsHighID$childStroopRT)
+mean(stroopItemEffectsLowID$childStroopRT)
+highvLowBasic=t.test(stroopItemEffectsHighID$childStroopRT,stroopItemEffectsLowID$childStroopRT, var.equal = TRUE)
+
+## imPair 7 - grill/desk
+unique(famRatings$ImageFileName[famRatings$ImPairNumber==7])
+bbqDie=stroopItemEffects$childStroopRT[stroopItemEffects$Item==7]
+
+# imPair 1 - apple/desk
+unique(famRatings$ImageFileName[famRatings$ImPairNumber==1])
+appleDesk=stroopItemEffects$childStroopRT[stroopItemEffects$Item==1]
+
+```
+
+If anything, pairs of objects that were well-identified at the basic level generated smaller Size-Stroop effects in RTs (M = `r round(mean(stroopItemEffectsHighID$childStroopRT),2)`ms) than pairs of objects that were not both well-identified (M = `r round(mean(stroopItemEffectsLowID$childStroopRT),2)`ms; unpaired two-sample t-test, (t(18)=`r round(highvLowBasic$statistic,2)`, p = `r round(highvLowBasic$p.value,2)`); Figure 5B).  For example, the Size-Stroop RT effect for the poorly recognized barbecue/die pair was `r round(bbqDie,2)`ms , whereas the Size-Stroop RT effect for the well-recognized desk/apple pair was `r round(appleDesk,2)`ms (Figure 5A).   
+
+### ...for error rates?
+```{r}
+stroopItemEffectsHighID_Errors <- stroopItemEffects_Errors %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, highBasicDisplays))
+  
+stroopItemEffectsLowID_Errors <- stroopItemEffects_Errors %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, lowBasicDisplays))
+  
+### output  
+mean(stroopItemEffectsHighID_Errors$stroopError)
+mean(stroopItemEffectsLowID_Errors$stroopError)
+highvLowBasic_Errors=t.test(stroopItemEffectsHighID_Errors$stroopError,stroopItemEffectsLowID_Errors$stroopError, var.equal = TRUE)
+
+```
+We also found the pattern of effects when we examined children’s Stroop error rates for highly-identified pairs (M= `r round(mean(stroopItemEffectsHighID_Errors$stroopError),2)`) vs. poorly-identified pairs (M= `r round(mean(stroopItemEffectsLowID_Errors$stroopError),2)`) this time examining effects across both 3-year-olds and 4-year-olds together (t(18)=`r round(highvLowBasic_Errors$statistic,2)`, p = `r round(highvLowBasic_Errors$p.value,2)`). 
+
+
+### How well did children identify the size of the objects?
+```{r}
+famRatingsBySub_Misidentifications<- famRatings %>%
+  filter(RespondedButIncorrect==1) %>%
+  group_by(Subject) %>%
+  summarize(meanSize = mean(CorrectSize)*100)
+
+misIDvChance=t.test(famRatingsBySub_Misidentifications$meanSize, mu=.5)
+```
+### Size identification paragraph
+In a second analysis, we counted as correct any identification of the target as an object in the same real-world size category, as most often, children’s misidentifications were of objects from the same real-world size category as the target (though rarely from the same taxonomic superordinate category; `r round(mean(famRatingsBySub_Misidentifications$meanSize),1)`% of misidentifications, t-test against 50%, t(23) = `r round(misIDvChance$statistic,2)`, p = `r round(misIDvChance$p.value,3)`.  
+
+### Separate items by a median split on size identification for further analysis
+```{r}
+highSize <- famRatings %>%
+  group_by(ImageFileName,ImPairNumber) %>%
+  summarize(meanSize = mean(CorrectSize)) 
+# get median of size identification
+medianSize = median(highSize$meanSize)
+#
+highSize <- highSize %>%
+  mutate(highSize = meanSize >= medianSize) %>%
+  group_by(ImPairNumber) %>%
+  summarize(countHighSize= sum(highSize)) 
+
+## Output size identification on these sets of "well" vs "poorly" size identified displays
+highSizeDisplays=highSize$ImPairNumber[highSize$countHighSize==2] ## 2 -- both items should be "true", i.e., greater than 75% threshold
+famRatingsHighSize <- famRatingsByItem %>%
+  filter(is.element(ImPairNumber,highSizeDisplays))
+##
+lowSizeDisplays=highSize$ImPairNumber[highSize$countHighSize<2]
+famRatingsLowSize <- famRatingsByItem %>%
+  filter(is.element(ImPairNumber,lowSizeDisplays))
+
+```
+
+Here, we separated pairs where children identified any object within the correct size-category at a rate above the median across all items, as size-identification was relatively high (both items >`r round(medianSize,2)` correct, 8/20 pairs, M = M = `r  round(mean(famRatingsHighSize$meanSize),2)`% across items) and pairs where children identified either object within the correct size-category at a rate below the median (one or both items <`r round(medianSize,2)`% correct, 12/20 pairs, M=`r  round(mean(famRatingsLowSize$meanSize),2)`% across items).
+
+
+## Are there difference in Size-Stroop effects according to size identification?
+### ...for reaction times?
+```{r} 
+stroopItemEffectsHighSize <- stroopItemEffects %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, highSizeDisplays))
+  
+stroopItemEffectsLowSize <- stroopItemEffects %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, lowSizeDisplays))
+  
+### output  
+mean(stroopItemEffectsHighSize$childStroopRT)
+mean(stroopItemEffectsLowSize$childStroopRT)
+highvLowSize=t.test(stroopItemEffectsLowSize$childStroopRT,stroopItemEffectsHighSize$childStroopRT, var.equal = TRUE)
+```
+
+### ...for error rates?
+```{r}
+stroopItemEffectsHighSize_Errors <- stroopItemEffects_Errors %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, highSizeDisplays))
+  
+stroopItemEffectsLowSize_Errors <- stroopItemEffects_Errors %>%
+  mutate(ImPairNumber = as.factor(Item)) %>%
+  filter(is.element(ImPairNumber, lowSizeDisplays))
+  
+### output  
+mean(stroopItemEffectsHighSize_Errors$stroopError)
+mean(stroopItemEffectsLowSize_Errors$stroopError)
+highvLowSize_Error=t.test(stroopItemEffectsLowSize_Errors$stroopError,stroopItemEffectsHighSize_Errors$stroopError, var.equal = TRUE)
+```
+
+We also found the pattern of effects when we examined children’s Stroop error rates for pairs with higher  (M= `r round(mean(stroopItemEffectsHighSize_Errors$stroopError),2)`) vs. lower size identification rates (M= `r round(mean(stroopItemEffectsLowSize_Errors$stroopError),2)`) this time examining effects across both 3-year-olds and 4-year-olds together (t(18)=`r round(highvLowSize_Error$statistic,2)`, p = `r round(highvLowSize_Error$p.value,2)`). 
+
+
+## Replot adult-kid correlations as a function of basic-level identification scores.
+```{r}
+## plot it!
+stroopByID <- famRatingsByItem %>%
+  group_by(ImPairNumber) %>%
+  mutate(meanBasicPair = mean(meanBasic), meanSizePair = mean(meanSize) ) %>%
+  mutate(Item = as.factor(ImPairNumber)) %>%
+  mutate(highBasicID=is.element(Item, highBasicDisplays)) %>%
+  left_join(stroopItemEffects) 
+
+plot1=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=meanBasicPair)) +
+  geom_point() +
+  scale_color_viridis(option="D",name="Average\nbasic-level ID(%)") +
+  theme_few(base_size=14) +
+  geom_smooth(method="lm", color="grey", alpha=.2) +
+  theme(legend.position = "top") +
+  labs(x="Adults' Stroop \n Item-Pair Effects (ms)", y="4-year-olds' Stroop \n Item-Pair Effects (ms)")+
+   xlim(c(-25, 75))  +
+   theme(aspect.ratio=1) + theme(
+    legend.text = element_text(size = 9), 
+    legend.title = element_text(size = 12), 
+    legend.key = element_rect(fill = NA), 
+    legend.background = element_rect(fill = NA)) 
+
+plot2=ggplot(stroopByID, aes(x = AdultStroopRT, y = childStroopRT, col=highBasicID)) +
+  geom_point() +
+  theme_few(base_size=14) + 
+  scale_color_manual(values=c("#39568CFF", "#B8DE29FF"), label = c("Well-identified", "Poorly-identified")) +
+  geom_smooth(method="lm", color="grey", alpha=.2) +
+  theme(legend.position = "top",aspect.ratio=1) +
+  theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 0), 
+    legend.key = element_rect(fill = NA), 
+    legend.background = element_rect(fill = NA)) + 
+  labs(x="Adults' Stroop \n Item-Pair Effects (ms)", y="4-year-olds' Stroop \n Item-Pair Effects (ms)")+
+xlim(c(-25, 75)) 
+
+E3=ggarrange(plot1,plot2,nrow=1)
+
+ggsave("SuppFigure5-AdultvsKids-byFamiliarity.tiff", width = 11.5, height = 5,unit =  "in", plot = E3, path="./figures/", device = "png",dpi = 300)
+
+```
